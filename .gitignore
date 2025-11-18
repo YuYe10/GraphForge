@@ -1,0 +1,7 @@
+.venv/
+*/__pycache__/
+frontend/node_modules/
+database/data
+data/
+logs/
+import/

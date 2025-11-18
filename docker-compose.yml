@@ -1,0 +1,31 @@
+# Use root/example as user/password credentials
+
+services:
+
+#  db:
+#    image: mariadb
+#    restart: always
+#    environment:
+#     MARIADB_ROOT_PASSWORD: example
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+  neo4j:
+    image: neo4j:latest
+    container_name: neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - ./data:/data
+      - ./logs:/logs
+      - ./import:/var/lib/neo4j/import
+      - ./plugins:/plugins
+    environment:
+      - NEO4J_AUTH=neo4j/neo4jneo4j # set your password here
+      - NEO4J_dbms_memory_pagecache_size=1G
+      - NEO4J_dbms.memory.heap.initial_size=1G
+      - NEO4J_dbms_memory_heap_max__size=1G

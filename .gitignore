@@ -1,7 +1,60 @@
-.venv/
-*/__pycache__/
-frontend/node_modules/
-database/data
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+.VSCodeCounter/
+*.swp
+*.swo
+*~
+
+# Data and uploads
 data/
+uploads/
+*.db
+*.sqlite
+docs/
+scripts/
+
+# Logs
+*.log
 logs/
-import/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+LunarInsight_技术蓝图_v4.md
+QUICKSTART.md
+LunarInsight_技术蓝图_v3.md

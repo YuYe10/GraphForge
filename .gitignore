@@ -32,6 +32,7 @@ wheels/
 .idea/
 .cursor/
 .VSCodeCounter/
+.marscode/
 *.swp
 *.swo
 *~

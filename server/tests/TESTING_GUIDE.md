@@ -1199,6 +1199,7 @@ neo4j start
 ### Q2: AI API 调用失败
 
 **A**: 使用 Mock 模式或设置有效的 API key：
+
 ```bash
 export AI_PROVIDER=mock
 # 或
@@ -1208,6 +1209,7 @@ export AI_API_KEY=your-key
 ### Q3: 测试数据污染
 
 **A**: 使用独立的测试数据库或测试后清理：
+
 ```python
 @pytest.fixture(autouse=True)
 def cleanup():

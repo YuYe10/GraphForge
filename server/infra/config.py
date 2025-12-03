@@ -70,8 +70,8 @@ class Settings(BaseSettings):
     enable_vector_search: bool = True
     
     # 模型配置
-    llm_model: str = "gpt-4o-mini"
-    embedding_model: str = "text-embedding-3-small"
+    llm_model: str = "qwen-plus"
+    embedding_model: str = "text-embedding-v3"
     embedding_dimension: int = 1536  # OpenAI text-embedding-3-small 维度
     
     # 本体约束配置

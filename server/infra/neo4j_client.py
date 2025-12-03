@@ -179,6 +179,51 @@ class Neo4jClient:
         if self.driver:
             self.driver.close()
     
+    @staticmethod
+    def _sanitize_properties(props: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sanitize properties to only include primitive types and arrays.
+        Neo4j property values can only be primitives or arrays of primitives.
+        
+        Args:
+            props: Dictionary of properties
+            
+        Returns:
+            Sanitized dictionary with only primitives and arrays of primitives
+        """
+        if not props:
+            return {}
+        
+        sanitized = {}
+        for key, value in props.items():
+            if value is None:
+                continue
+            # Keep primitives (str, int, float, bool)
+            if isinstance(value, (str, int, float, bool)):
+                sanitized[key] = value
+            # Keep lists/arrays of primitives
+            elif isinstance(value, (list, tuple)):
+                try:
+                    # Convert to list and filter to primitives
+                    sanitized[key] = [v for v in value if isinstance(v, (str, int, float, bool, type(None)))]
+                except Exception:
+                    # If conversion fails, skip this property
+                    pass
+            # Serialize dict/object to JSON string
+            elif isinstance(value, dict):
+                try:
+                    sanitized[key] = json.dumps(value, default=str, ensure_ascii=False)
+                except Exception:
+                    pass
+            # For other types, try to convert to string
+            else:
+                try:
+                    sanitized[key] = str(value)
+                except Exception:
+                    pass
+        
+        return sanitized
+    
     def execute_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
         Execute a Cypher query and return results.
@@ -287,8 +332,11 @@ class Neo4jClient:
             source_id: Source node ID (can be document ID or concept name)
             target_id: Target node ID
             rel_type: Relationship type (e.g., MENTIONS, DERIVES_FROM)
-            properties: Relationship properties
+            properties: Relationship properties (will be sanitized to primitives only)
         """
+        # Sanitize properties to only include primitives
+        sanitized_props = self._sanitize_properties(properties or {})
+        
         query = f"""
         MATCH (a), (b)
         WHERE (a:Document AND a.id = $source_id) OR (a:Concept AND a.name = $source_id)
@@ -302,7 +350,7 @@ class Neo4jClient:
         result = self.execute_query(query, {
             "source_id": source_id,
             "target_id": target_id,
-            "properties": properties or {}
+            "properties": sanitized_props
         })
         return len(result) > 0
     
@@ -357,7 +405,7 @@ class Neo4jClient:
         WHERE toLower(c.name) = toLower($name)
            OR c.name CONTAINS $name
            OR $name CONTAINS c.name
-           OR toLower($name) IN [toLower(alias) | alias IN coalesce(c.aliases, [])]
+           OR any(alias IN coalesce(c.aliases, []) WHERE toLower(alias) = toLower($name))
            OR any(alias IN coalesce(c.aliases, []) WHERE alias CONTAINS $name OR $name CONTAINS alias)
         RETURN c
         ORDER BY 

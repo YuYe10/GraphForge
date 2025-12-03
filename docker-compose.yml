@@ -9,34 +9,28 @@ services:
       - NEO4J_PLUGINS=["apoc", "graph-data-science"]
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
       - NEO4J_dbms_security_procedures_allowlist=apoc.*,gds.*
-      # 添加以下环境变量
-      - NEO4J_dbms_memory_heap_initial__size=512M
-      - NEO4J_dbms_memory_heap_max__size=1G
-      - NEO4J_dbms_memory_pagecache_size=512M
     ports:
       - "7474:7474"  # HTTP
       - "7687:7687"  # Bolt
     volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-      - neo4j_import:/var/lib/neo4j/import
-      - neo4j_plugins:/plugins
-      # - ./server/infra/schema.cypher:/docker-entrypoint-initdb.d/init.cypher:ro
+      - ./data/neo4j:/data
+      - ./data/neo4j/logs:/logs
+      - ./data/neo4j/import:/var/lib/neo4j/import
+      - ./data/neo4j/plugins:/plugins
+      - ./server/infra/schema.cypher:/docker-entrypoint-initdb.d/init.cypher:ro
     healthcheck:
-      # 简化健康检查，先确保容器能启动
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "test1234", "RETURN 1"]
-      interval: 30s  # 增加间隔时间
-      timeout: 10s   # 增加超时时间
-      retries: 10    # 增加重试次数
-      start_period: 60s  # 添加启动等待时间
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo4j1234", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: pow-redis
     ports:
-      - "6379:6379"     
+      - "6379:6379"
     volumes:
-      - redis_data:/data
+      - ./data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

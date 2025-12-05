@@ -104,8 +104,63 @@ async def list_themes(doc_id: Optional[str] = None):
         doc_id: 可选，过滤特定文档的主题
     """
     try:
-        # TODO: 查询 Neo4j，返回 Theme 列表
-        return {"themes": []}
+        from infra.neo4j_client import Neo4jClient
+        
+        neo4j_client = Neo4jClient()
+        neo4j_client.initialize()
+        
+        # 构建查询
+        if doc_id:
+            query = """
+            MATCH (t:Theme)
+            WHERE t.id CONTAINS $doc_id
+            RETURN t.id AS id,
+                   t.label AS label,
+                   t.summary AS summary,
+                   t.level AS level,
+                   t.keywords AS keywords,
+                   t.member_count AS member_count,
+                   t.created_at AS created_at
+            ORDER BY t.level, t.label
+            """
+            params = {"doc_id": doc_id}
+        else:
+            query = """
+            MATCH (t:Theme)
+            RETURN t.id AS id,
+                   t.label AS label,
+                   t.summary AS summary,
+                   t.level AS level,
+                   t.keywords AS keywords,
+                   t.member_count AS member_count,
+                   t.created_at AS created_at
+            ORDER BY t.level, t.label
+            """
+            params = {}
+        
+        result = neo4j_client.execute_query(query, params)
+        
+        themes = []
+        for record in result:
+            # 格式化时间戳
+            created_at = record.get("created_at")
+            if created_at:
+                created_at = created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at)
+            
+            themes.append({
+                "id": record["id"],
+                "label": record["label"],
+                "summary": record["summary"],
+                "level": record["level"],
+                "keywords": record.get("keywords", []),
+                "member_count": record.get("member_count", 0),
+                "created_at": created_at
+            })
+        
+        return {
+            "themes": themes,
+            "total": len(themes)
+        }
     
     except Exception as e:
         logger.error(f"查询主题失败: {e}", exc_info=True)
@@ -121,9 +176,100 @@ async def get_theme_detail(theme_id: str):
         theme_id: 主题 ID
     """
     try:
-        # TODO: 查询 Neo4j，返回主题详细信息
-        return {"theme_id": theme_id}
+        from infra.neo4j_client import Neo4jClient
+        import json
+        
+        neo4j_client = Neo4jClient()
+        neo4j_client.initialize()
+        
+        # 查询主题节点
+        query = """
+        MATCH (t:Theme {id: $theme_id})
+        RETURN t.id AS id,
+               t.label AS label,
+               t.summary AS summary,
+               t.level AS level,
+               t.keywords AS keywords,
+               t.community_id AS community_id,
+               t.member_count AS member_count,
+               t.concept_ids AS concept_ids,
+               t.claim_ids AS claim_ids,
+               t.key_evidence AS key_evidence,
+               t.build_version AS build_version,
+               t.created_at AS created_at,
+               t.updated_at AS updated_at
+        """
+        
+        result = neo4j_client.execute_query(query, {"theme_id": theme_id})
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"主题不存在: {theme_id}")
+        
+        record = result[0]
+        
+        # 格式化时间戳
+        created_at = record.get("created_at")
+        updated_at = record.get("updated_at")
+        
+        if created_at:
+            created_at = created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at)
+        if updated_at:
+            updated_at = updated_at.isoformat() if hasattr(updated_at, "isoformat") else str(updated_at)
+        
+        # 解析 key_evidence (如果是 JSON 字符串)
+        key_evidence = record.get("key_evidence")
+        if key_evidence and isinstance(key_evidence, str):
+            try:
+                key_evidence = json.loads(key_evidence)
+            except:
+                key_evidence = None
+        
+        # 查询相关的概念和论断
+        concepts_query = """
+        MATCH (t:Theme {id: $theme_id})<-[:BELONGS_TO_THEME]-(c:Concept)
+        RETURN c.name AS name, c.definition AS definition
+        LIMIT 10
+        """
+        
+        claims_query = """
+        MATCH (t:Theme {id: $theme_id})<-[:BELONGS_TO_THEME]-(cl:Claim)
+        RETURN cl.id AS id, cl.text AS text
+        LIMIT 10
+        """
+        
+        concepts_result = neo4j_client.execute_query(concepts_query, {"theme_id": theme_id})
+        claims_result = neo4j_client.execute_query(claims_query, {"theme_id": theme_id})
+        
+        concepts = [{
+            "name": c["name"],
+            "definition": c.get("definition")
+        } for c in concepts_result]
+        
+        claims = [{
+            "id": c["id"],
+            "text": c["text"]
+        } for c in claims_result]
+        
+        return {
+            "id": record["id"],
+            "label": record["label"],
+            "summary": record["summary"],
+            "level": record["level"],
+            "keywords": record.get("keywords", []),
+            "community_id": record.get("community_id"),
+            "member_count": record.get("member_count", 0),
+            "concept_ids": record.get("concept_ids", []),
+            "claim_ids": record.get("claim_ids", []),
+            "key_evidence": key_evidence,
+            "build_version": record.get("build_version"),
+            "created_at": created_at,
+            "updated_at": updated_at,
+            "concepts": concepts,
+            "claims": claims
+        }
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"查询主题详情失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"查询失败: {str(e)}")

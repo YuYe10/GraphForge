@@ -36,13 +36,3 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-            
-volumes:
-  neo4j_data:
-  neo4j_logs:
-  neo4j_import:
-  neo4j_plugins:
-  redis_data:
-  uploads_data:
-  server_data:
-  frontend_data:

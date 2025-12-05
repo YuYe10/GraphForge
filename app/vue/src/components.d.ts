@@ -59,6 +59,7 @@ declare module 'vue' {
     NUpload: typeof import('naive-ui')['NUpload']
     NUploadDragger: typeof import('naive-ui')['NUploadDragger']
     ProcessingFloater: typeof import('./components/ProcessingFloater.vue')['default']
+    QADialog: typeof import('./components/QADialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

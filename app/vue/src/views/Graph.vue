@@ -423,28 +423,33 @@ const loadGraph = async () => {
       message.warning(t('graph.no_data'))
       return
     }
-  let nodes: ElementDefinition[] = []
-  let edges: ElementDefinition[] = []
 
-    // Backend returns GraphResponse format: { nodes: [], edges: [], stats: {} }
+    let nodes: ElementDefinition[] = []
+    let edges: ElementDefinition[] = []
+
+    // Backend returns format: { nodes: [], edges: [], stats: {} }
     if (result.nodes && result.edges) {
       // Transform backend Node format to Cytoscape format
-      nodes = result.nodes.map(node => ({
+      // New format includes: id, labels, type, label, properties, degree
+      nodes = result.nodes.map((node: any) => ({
         data: {
           id: node.id,
-          label: node.properties.name || node.properties.filename || node.id,
+          label: node.label || node.properties?.name || node.properties?.filename || node.id,
+          type: node.type || (node.labels && node.labels[0]) || 'Unknown',
+          degree: node.degree || 0,
           ...node.properties
         },
-        classes: node.labels.join(' ')
+        classes: node.labels ? node.labels.join(' ') : node.type || 'Unknown'
       }))
       
       // Transform backend Edge format to Cytoscape format
-      edges = result.edges.map(edge => ({
+      edges = result.edges.map((edge: any) => ({
         data: {
           id: edge.id || `${edge.source}-${edge.target}-${edge.type}`,
           source: edge.source,
           target: edge.target,
-          label: edge.type,
+          label: edge.label || edge.type,
+          type: edge.type,
           ...edge.properties
         }
       }))

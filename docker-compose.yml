@@ -36,50 +36,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  api:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: pow-api
-    environment:
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=neo4j
-      - NEO4J_PASS=neo4j1234
-      - REDIS_URL=redis://redis:6379/0
-      - UPLOAD_DIR=/app/uploads
-      - AI_API_KEY=${AI_API_KEY:-}
-      - ENABLE_NEO4J_GRAPHRAG=true
-      - ENABLE_VECTOR_SEARCH=true
-    ports:
-      - "8000:8000"
-    # 注意：Windows 的某些驱动器（例如 I:）在 Docker Desktop 中挂载可能会失败。
-    # 如果出现挂载错误（mkdir /run/desktop/mnt/host/i: file exists），可临时使用 named volume 避开宿主机绑定：
-    volumes:
-      - server_data:/app
-      - uploads_data:/app/uploads
-    depends_on:
-      neo4j:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-
-  frontend:
-    build:
-      context: ./app/vue
-      dockerfile: Dockerfile
-    container_name: pow-frontend
-    environment:
-      - VITE_API_BASE=http://api:8000
-    ports:
-      - "8788:80"
-    depends_on:
-      - api
-    volumes:
-      - frontend_data:/app
-      - /app/node_modules
-
+            
 volumes:
   neo4j_data:
   neo4j_logs:

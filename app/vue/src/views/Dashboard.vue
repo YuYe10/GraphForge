@@ -254,6 +254,9 @@
         </div>
       </div>
     </div>
+
+    <!-- QA Dialog -->
+    <QADialog v-model="showQADialog" />
   </div>
 </template>
 
@@ -301,6 +304,7 @@ import {
   LegendComponent
 } from 'echarts/components'
 import { getDashboardStats } from '@/api/services'
+import QADialog from '@/components/QADialog.vue'
 
 use([
   CanvasRenderer,
@@ -314,6 +318,7 @@ const router = useRouter()
 const message = useMessage()
 
 const loading = ref(false)
+const showQADialog = ref(false)
 const stats = ref({
   totalDocuments: 0,
   totalConcepts: 0,
@@ -496,7 +501,7 @@ const refreshStats = () => {
 }
 
 const handleAsk = () => {
-  message.info('智能问答功能开发中...')
+  showQADialog.value = true
 }
 
 const handleViewDocument = (row) => {

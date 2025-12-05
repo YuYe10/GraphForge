@@ -5,6 +5,7 @@
 """
 
 import logging
+from datetime import datetime
 from typing import Dict, Any, Optional, List
 from graphrag.config import get_config, ConstraintResult, GovernanceStatus
 
@@ -140,7 +141,7 @@ class PredicateGovernor:
         """
         logger.info(f"开始批量规范化: doc_id={doc_id}")
         
-        from server.infra.neo4j_client import neo4j_client
+        from infra.neo4j_client import neo4j_client
         
         # 查询文档相关的所有关系（只处理尚未治理的）
         query = """
@@ -151,7 +152,7 @@ class PredicateGovernor:
         RETURN DISTINCT type(r) AS rel_type, 
                labels(n1)[0] AS source_type,
                labels(n2)[0] AS target_type,
-               id(r) AS rel_id,
+               elementId(r) AS rel_id,
                properties(r) AS props
         """
         
@@ -198,24 +199,27 @@ class PredicateGovernor:
                 'governance_status': governance_result['governance_status'].value,
                 'predicate_version': governance_result['predicate_version'],
                 'ontology_version': governance_result['ontology_version'],
-                'governed_at': None  # TODO: 添加时间戳
+                'governed_at': datetime.utcnow().isoformat()
             }
             
             # 如果谓词需要更新，更新关系类型和治理元数据
             if governance_result['normalized_predicate'] != rel_type:
+                # 清理关系类型名称（移除特殊字符）
+                normalized_rel_type = governance_result['normalized_predicate'].replace('(', '_').replace(')', '')
+                
                 update_query = f"""
                 MATCH ()-[r]->()
-                WHERE id(r) = $rel_id
+                WHERE elementId(r) = $rel_id
                 WITH r, startNode(r) AS source, endNode(r) AS target, properties(r) AS props
                 DELETE r
-                CREATE (source)-[r2:{governance_result['normalized_predicate']}]->(target)
+                CREATE (source)-[r2:{normalized_rel_type}]->(target)
                 SET r2 = props, r2 += $metadata
                 """
             else:
                 # 只更新治理元数据
                 update_query = """
                 MATCH ()-[r]->()
-                WHERE id(r) = $rel_id
+                WHERE elementId(r) = $rel_id
                 SET r += $metadata
                 """
             

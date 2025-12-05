@@ -2,7 +2,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import upload, ingest, graph, settings, knowledge_card
+from routes import upload, ingest, graph, settings, knowledge_card, qa
 from infra.neo4j_client import neo4j_client
 
 
@@ -47,6 +47,7 @@ app.include_router(ingest.router)
 app.include_router(graph.router)
 app.include_router(settings.router)
 app.include_router(knowledge_card.router)
+app.include_router(qa.router)
 
 
 @app.get("/")

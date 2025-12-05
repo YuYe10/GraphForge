@@ -13,6 +13,17 @@ from datetime import datetime
 router = APIRouter(prefix="/knowledge-cards", tags=["knowledge-cards"])
 
 
+def _format_timestamp(ts) -> Optional[str]:
+    """Convert timestamp to ISO format string."""
+    if ts is None:
+        return None
+    if isinstance(ts, str):
+        return ts
+    if isinstance(ts, datetime):
+        return ts.isoformat()
+    return str(ts)
+
+
 @router.post("", response_model=KnowledgeCardResponse)
 async def create_knowledge_card(card: KnowledgeCardCreate):
     """
@@ -114,8 +125,8 @@ async def create_knowledge_card(card: KnowledgeCardCreate):
             aliases=record.get("aliases", []),
             related_concepts=card.related_concepts,
             attributes=card.attributes,
-            created_at=concept.get("created_at"),
-            updated_at=concept.get("updated_at"),
+            created_at=_format_timestamp(concept.get("created_at")),
+            updated_at=_format_timestamp(concept.get("updated_at")),
             connection_count=record.get("conn_count", 0)
         )
         
@@ -165,9 +176,9 @@ async def list_knowledge_cards(
         {where_clause}
         OPTIONAL MATCH (c)-[r]-()
         WITH c, count(r) as conn_count
-        OPTIONAL MATCH (a:Alias)-[:REFERS_TO]->(c)
+        OPTIONAL MATCH (a:Alias)-[r_alias]->(c)
         WITH c, conn_count, collect(a.name) as aliases
-        OPTIONAL MATCH (c)-[:RELATED_TO]->(related:Concept)
+        OPTIONAL MATCH (c)-[r_rel]->(related:Concept)
         WITH c, conn_count, aliases, collect(related.name) as related_concepts
         RETURN c, conn_count, aliases, related_concepts
         ORDER BY c.updated_at DESC
@@ -200,8 +211,8 @@ async def list_knowledge_cards(
                 aliases=record.get("aliases", []),
                 related_concepts=record.get("related_concepts", []),
                 attributes={},  # 自定义属性需要单独处理
-                created_at=concept.get("created_at"),
-                updated_at=concept.get("updated_at"),
+                created_at=_format_timestamp(concept.get("created_at")),
+                updated_at=_format_timestamp(concept.get("updated_at")),
                 connection_count=record.get("conn_count", 0)
             ))
         
@@ -228,9 +239,9 @@ async def get_knowledge_card(card_id: str):
             MATCH (c:Concept {name: $name})
             OPTIONAL MATCH (c)-[r]-()
             WITH c, count(r) as conn_count
-            OPTIONAL MATCH (a:Alias)-[:REFERS_TO]->(c)
+            OPTIONAL MATCH (a:Alias)-[r_alias]->(c)
             WITH c, conn_count, collect(a.name) as aliases
-            OPTIONAL MATCH (c)-[:RELATED_TO]->(related:Concept)
+            OPTIONAL MATCH (c)-[r_rel]->(related:Concept)
             WITH c, conn_count, aliases, collect(related.name) as related_concepts
             RETURN c, conn_count, aliases, related_concepts
             """,
@@ -254,8 +265,8 @@ async def get_knowledge_card(card_id: str):
             aliases=record.get("aliases", []),
             related_concepts=record.get("related_concepts", []),
             attributes={},
-            created_at=concept.get("created_at"),
-            updated_at=concept.get("updated_at"),
+            created_at=_format_timestamp(concept.get("created_at")),
+            updated_at=_format_timestamp(concept.get("updated_at")),
             connection_count=record.get("conn_count", 0)
         )
         
@@ -321,7 +332,7 @@ async def update_knowledge_card(card_id: str, card: KnowledgeCardUpdate):
             # 删除旧别名
             neo4j_client.execute_query(
                 """
-                MATCH (c:Concept {name: $name})<-[:REFERS_TO]-(a:Alias)
+                MATCH (c:Concept {name: $name})<-[r]-(a:Alias)
                 DETACH DELETE a
                 """,
                 {"name": card.name or card_id}
@@ -333,17 +344,17 @@ async def update_knowledge_card(card_id: str, card: KnowledgeCardUpdate):
                     """
                     MATCH (c:Concept {name: $name})
                     MERGE (a:Alias {name: $alias})
-                    MERGE (a)-[:REFERS_TO]->(c)
+                    MERGE (a)-[:ALIAS_OF]->(c)
                     """,
                     {"name": card.name or card_id, "alias": alias}
                 )
         
         # 更新关联概念
         if card.related_concepts is not None:
-            # 删除旧的 RELATED_TO 关系
+            # 删除旧的关系
             neo4j_client.execute_query(
                 """
-                MATCH (c:Concept {name: $name})-[r:RELATED_TO]->()
+                MATCH (c:Concept {name: $name})-[r]-()
                 DELETE r
                 """,
                 {"name": card.name or card_id}
@@ -355,7 +366,7 @@ async def update_knowledge_card(card_id: str, card: KnowledgeCardUpdate):
                     """
                     MERGE (c1:Concept {name: $name1})
                     MERGE (c2:Concept {name: $name2})
-                    MERGE (c1)-[:RELATED_TO]->(c2)
+                    MERGE (c1)-[:RELATED]->(c2)
                     """,
                     {"name1": card.name or card_id, "name2": related_name}
                 )
@@ -393,7 +404,7 @@ async def delete_knowledge_card(card_id: str):
         # 删除别名
         neo4j_client.execute_query(
             """
-            MATCH (c:Concept {name: $name})<-[:REFERS_TO]-(a:Alias)
+            MATCH (c:Concept {name: $name})<-[r]-(a:Alias)
             DETACH DELETE a
             """,
             {"name": card_id}

@@ -224,6 +224,60 @@ class Neo4jClient:
         
         return sanitized
     
+    @staticmethod
+    def _convert_neo4j_types(obj: Any) -> Any:
+        """
+        Recursively convert Neo4j special types to standard Python types.
+        Neo4j driver returns special datetime/date/time objects and Node/Relationship objects
+        that Pydantic cannot serialize.
+        
+        Args:
+            obj: Object to convert (can be dict, list, Node, Relationship, or primitive)
+            
+        Returns:
+            Converted object with all Neo4j types replaced by Python equivalents
+        """
+        # Import neo4j types dynamically to avoid hard dependencies
+        try:
+            from neo4j.time import DateTime, Date, Time, Duration
+            from neo4j import Node, Relationship
+        except ImportError:
+            # If neo4j types not available, return as-is
+            return obj
+        
+        # Handle None
+        if obj is None:
+            return None
+        
+        # Handle Neo4j Node objects - convert to dict of properties
+        if isinstance(obj, Node):
+            return Neo4jClient._convert_neo4j_types(dict(obj))
+        
+        # Handle Neo4j Relationship objects - convert to dict of properties
+        if isinstance(obj, Relationship):
+            return Neo4jClient._convert_neo4j_types(dict(obj))
+        
+        # Handle Neo4j datetime types
+        if isinstance(obj, DateTime):
+            return obj.to_native()
+        if isinstance(obj, Date):
+            return obj.to_native()
+        if isinstance(obj, Time):
+            return obj.to_native()
+        if isinstance(obj, Duration):
+            return str(obj)  # Convert duration to string representation
+        
+        # Handle dictionaries (recursively convert values)
+        if isinstance(obj, dict):
+            return {k: Neo4jClient._convert_neo4j_types(v) for k, v in obj.items()}
+        
+        # Handle lists (recursively convert elements)
+        if isinstance(obj, (list, tuple)):
+            return [Neo4jClient._convert_neo4j_types(item) for item in obj]
+        
+        # Return primitives and other types as-is
+        return obj
+    
     def execute_query(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
         Execute a Cypher query and return results.
@@ -233,14 +287,15 @@ class Neo4jClient:
             parameters: Query parameters
             
         Returns:
-            List of result records as dictionaries
+            List of result records as dictionaries with Neo4j types converted to Python types
         """
         if not self._initialized:
             raise RuntimeError("Neo4jClient is not initialized. Call initialize() first.")
         
         with self.driver.session() as session:
             result = session.run(query, parameters or {})
-            return [dict(record) for record in result]
+            # Convert each record to dict and recursively convert Neo4j types
+            return [self._convert_neo4j_types(dict(record)) for record in result]
     
     def create_document(self, doc_id: str, filename: str, checksum: str, 
                        kind: str, size: int, mime: Optional[str] = None,

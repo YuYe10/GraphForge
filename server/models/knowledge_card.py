@@ -45,6 +45,8 @@ class KnowledgeCardResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     connection_count: int = 0
+    
+    model_config = {"from_attributes": True}
 
 
 class KnowledgeCardListResponse(BaseModel):

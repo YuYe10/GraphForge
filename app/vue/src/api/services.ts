@@ -202,10 +202,18 @@ export const startIngestion = (documentId: string): Promise<IngestionResponse> =
   api.post(`/ingest/${documentId}`)
 
 // Graph
-export const getGraphData = (limit: number = 100): Promise<GraphData> => 
-  api.get('/graph/query', {
+export const getGraphData = (limit: number = 500): Promise<any> => 
+  api.get('/graph/visualize', {
     params: {
-      cypher: `MATCH (n)-[r]->(m) RETURN n, r, m LIMIT ${limit}`
+      limit: Math.min(limit, 5000)
+    }
+  })
+
+export const getGraphDataByType = (nodeType: string, limit: number = 500): Promise<any> => 
+  api.get('/graph/visualize', {
+    params: {
+      limit: Math.min(limit, 5000),
+      node_type: nodeType
     }
   })
 
@@ -297,4 +305,31 @@ export const updateEdge = (sourceId: string, targetId: string, relType: string, 
 
 export const deleteEdge = (sourceId: string, targetId: string, relType: string): Promise<void> => 
   api.delete(`/graph/edges/${sourceId}/${targetId}/${relType}`)
+
+// ========== Q&A Service ==========
+
+export interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface AskRequest {
+  question: string
+  conversation_history?: Message[]
+  use_kg?: boolean
+}
+
+export interface AskResponse {
+  success: boolean
+  answer: string
+  used_context: boolean
+  context_snippet?: string
+  error?: string
+}
+
+export const askQuestion = (request: AskRequest): Promise<AskResponse> =>
+  api.post('/qa/ask', request)
+
+export const checkQAHealth = (): Promise<{ status: string; provider: string; has_ai_client: boolean }> =>
+  api.get('/qa/health')
 

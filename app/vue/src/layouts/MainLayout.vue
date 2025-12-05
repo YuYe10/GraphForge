@@ -171,10 +171,8 @@ const handleUserMenuSelect = (key) => {
   if (key === 'settings') {
     router.push('/settings')
   } else if (key === 'profile') {
-    // TODO: implement profile page
     console.log('Profile not implemented yet')
   } else if (key === 'logout') {
-    // TODO: implement logout
     console.log('Logout not implemented yet')
   }
 }

@@ -158,7 +158,7 @@ class GraphService:
                         """
                         MATCH (c:Concept {name: $name})
                         MERGE (a:Alias {name: $alias})
-                        MERGE (a)-[:REFERS_TO]->(c)
+                        MERGE (a)-[:ALIAS_OF]->(c)
                         """,
                         {"name": name, "alias": alias}
                     )

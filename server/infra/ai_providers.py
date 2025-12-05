@@ -484,3 +484,132 @@ class AIProviderFactory:
             }
         ]
 
+
+def get_ai_client(
+    provider: str,
+    api_key: Optional[str] = None,
+    model: Optional[str] = None,
+    base_url: Optional[str] = None
+) -> Optional[BaseAIClient]:
+    """
+    Factory function to get AI client based on provider.
+    
+    Args:
+        provider: AI provider name (openai, qwen, anthropic, etc.)
+        api_key: API key for the provider
+        model: Model name (uses provider default if not specified)
+        base_url: Custom API base URL (optional)
+        
+    Returns:
+        AI client instance or None if mock mode
+    """
+    # Default models for each provider
+    default_models = {
+        "openai": "gpt-4o-mini",
+        "anthropic": "claude-3-sonnet-20240229",
+        "google": "gemini-1.5-pro",
+        "qwen": "qwen-max",
+        "glm": "glm-4",
+        "deepseek": "deepseek-chat",
+        "moonshot": "moonshot-v1-auto",
+        "ernie": "ernie-4.0-turbo-latest",
+        "minimax": "abab6.5s-chat",
+        "doubao": "doubao-pro-32k",
+        "ollama": "llama2",
+        "mock": "mock"
+    }
+    
+    # Use default model if not specified
+    if not model:
+        model = default_models.get(provider, "default")
+    
+    # Provider-specific client initialization
+    if provider == "openai":
+        if not api_key:
+            raise ValueError("OpenAI requires api_key")
+        return OpenAIClient(api_key=api_key, model=model, base_url=base_url)
+    
+    elif provider == "anthropic":
+        if not api_key:
+            raise ValueError("Anthropic Claude requires api_key")
+        return AnthropicClient(api_key=api_key, model=model, base_url=base_url)
+    
+    elif provider == "google":
+        if not api_key:
+            raise ValueError("Google Gemini requires api_key")
+        return GoogleGeminiClient(api_key=api_key, model=model, base_url=base_url)
+    
+    elif provider in ["qwen", "glm", "deepseek", "moonshot", "ernie", "minimax", "doubao", "ollama"]:
+        if provider != "ollama" and not api_key:
+            raise ValueError(f"{provider} requires api_key")
+        # All these use OpenAI-compatible interface
+        if not base_url:
+            # Default base URLs for common providers
+            base_urls = {
+                "qwen": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                "glm": "https://open.bigmodel.cn/api/paas/v4",
+                "deepseek": "https://api.deepseek.com",
+                "moonshot": "https://api.moonshot.cn/v1",
+                "ernie": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat",
+                "minimax": "https://api.minimaxi.chat/v1",
+                "doubao": "https://ark.cn-beijing.volces.com/api/v3",
+                "ollama": "http://localhost:11434/v1"
+            }
+            base_url = base_urls.get(provider)
+        return OpenAICompatibleClient(api_key=api_key or "dummy", model=model, base_url=base_url)
+    
+    elif provider == "mock":
+        # Mock client for testing - just returns predefined responses
+        return MockAIClient(model=model)
+    
+    else:
+        raise ValueError(f"Unsupported provider: {provider}")
+
+
+class MockAIClient(BaseAIClient):
+    """Mock AI client for testing without API calls."""
+    
+    def __init__(self, model: str = "mock"):
+        super().__init__(model)
+    
+    def chat_completion(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: float = 0.3,
+        **extra_params
+    ) -> str:
+        """Return mock responses for testing."""
+        # Extract user message
+        user_message = ""
+        for msg in messages:
+            if msg.get("role") == "user":
+                user_message = msg.get("content", "")
+        
+        # Generate mock response based on question
+        if "知识图谱" in user_message or "graph" in user_message.lower():
+            return """知识图谱是一种以图形结构表示知识的方法，它通过节点（实体）和边（关系）来组织和展示知识。
+
+**主要特点：**
+- **节点**：代表实体（人物、地点、概念等）
+- **边**：表示实体之间的关系
+- **应用**：搜索、推荐系统、自然语言处理
+
+知识图谱广泛应用于Google搜索、维基百科等大型应用中。"""
+        
+        elif "人工智能" in user_message or "AI" in user_message:
+            return """人工智能（AI）是计算机科学的一个分支，旨在创建能够执行通常需要人类智能的任务的机器。
+
+**主要领域：**
+- 机器学习
+- 深度学习
+- 自然语言处理
+- 计算机视觉
+
+人工智能已经成为现代社会的重要技术。"""
+        
+        else:
+            return f"""这是一个Mock模式的测试回答。
+
+您的问题是: {user_message[:100]}
+
+在实际应用中，这里会返回由AI模型生成的真实答案，同时配合知识图谱中的相关信息。"""

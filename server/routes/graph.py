@@ -7,6 +7,148 @@ from models.graph import GraphQuery, GraphResponse, Node, Edge, NodeCreate, Node
 router = APIRouter(prefix="/graph", tags=["graph"])
 
 
+@router.get("/visualize")
+async def visualize_graph(
+    limit: int = Query(500, ge=10, le=5000, description="Maximum nodes to return"),
+    node_type: Optional[str] = Query(None, description="Filter by node type (Concept, Document, etc)"),
+):
+    """
+    Get knowledge graph data optimized for visualization.
+    
+    Returns nodes and edges in a format suitable for frontend visualization libraries.
+    Automatically handles Neo4j type conversions (DateTime, Node objects, etc).
+    """
+    try:
+        # Build query based on filters
+        if node_type:
+            query = f"""
+            MATCH (n:{node_type})
+            OPTIONAL MATCH (n)-[r]->(m)
+            WITH n, r, m
+            RETURN n, r, m
+            LIMIT {limit}
+            """
+        else:
+            query = f"""
+            MATCH (n)
+            OPTIONAL MATCH (n)-[r]->(m)
+            WITH n, r, m
+            RETURN n, r, m
+            LIMIT {limit}
+            """
+        
+        results = neo4j_client.execute_query(query)
+        
+        # Process results into nodes and edges
+        nodes_dict: Dict[str, Dict[str, Any]] = {}
+        edges: List[Dict[str, Any]] = []
+        
+        for record in results:
+            # Process source node (n)
+            if "n" in record and record["n"]:
+                node = record["n"]
+                node_props = dict(node) if isinstance(node, dict) else node
+                labels = list(node.labels) if hasattr(node, "labels") else []
+                
+                # Create unique node ID
+                node_id = node_props.get("id") or node_props.get("name")
+                if not node_id:
+                    node_id = getattr(node, "element_id", None) or str(id(node))
+                
+                node_id = str(node_id)
+                
+                if node_id not in nodes_dict:
+                    nodes_dict[node_id] = {
+                        "id": node_id,
+                        "labels": labels,
+                        "type": labels[0] if labels else "Unknown",
+                        "label": node_props.get("name") or node_props.get("filename") or node_id,
+                        "properties": node_props,
+                        "degree": 0  # Will be updated based on relationships
+                    }
+            
+            # Process target node (m)
+            if "m" in record and record["m"]:
+                node = record["m"]
+                node_props = dict(node) if isinstance(node, dict) else node
+                labels = list(node.labels) if hasattr(node, "labels") else []
+                
+                node_id = node_props.get("id") or node_props.get("name")
+                if not node_id:
+                    node_id = getattr(node, "element_id", None) or str(id(node))
+                
+                node_id = str(node_id)
+                
+                if node_id not in nodes_dict:
+                    nodes_dict[node_id] = {
+                        "id": node_id,
+                        "labels": labels,
+                        "type": labels[0] if labels else "Unknown",
+                        "label": node_props.get("name") or node_props.get("filename") or node_id,
+                        "properties": node_props,
+                        "degree": 0
+                    }
+            
+            # Process relationship (r)
+            if "r" in record and record["r"]:
+                rel = record["r"]
+                source_node = record.get("n")
+                target_node = record.get("m")
+                
+                if source_node and target_node:
+                    # Get source node ID
+                    source_props = dict(source_node) if isinstance(source_node, dict) else source_node
+                    source_id = source_props.get("id") or source_props.get("name")
+                    if not source_id:
+                        source_id = getattr(source_node, "element_id", None) or str(id(source_node))
+                    source_id = str(source_id)
+                    
+                    # Get target node ID
+                    target_props = dict(target_node) if isinstance(target_node, dict) else target_node
+                    target_id = target_props.get("id") or target_props.get("name")
+                    if not target_id:
+                        target_id = getattr(target_node, "element_id", None) or str(id(target_node))
+                    target_id = str(target_id)
+                    
+                    # Get relationship type and properties
+                    rel_type = rel.type if hasattr(rel, "type") else "RELATES_TO"
+                    rel_props = dict(rel) if isinstance(rel, dict) else rel
+                    
+                    edges.append({
+                        "id": f"{source_id}_{rel_type}_{target_id}",
+                        "source": source_id,
+                        "target": target_id,
+                        "type": rel_type,
+                        "label": rel_type,
+                        "properties": rel_props
+                    })
+                    
+                    # Update degree for both nodes
+                    if source_id in nodes_dict:
+                        nodes_dict[source_id]["degree"] += 1
+                    if target_id in nodes_dict:
+                        nodes_dict[target_id]["degree"] += 1
+        
+        # Prepare response
+        nodes = list(nodes_dict.values())
+        
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "stats": {
+                "node_count": len(nodes),
+                "edge_count": len(edges),
+                "types": list(set(n.get("type", "Unknown") for n in nodes))
+            }
+        }
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in visualize_graph: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to load graph data: {str(e)}")
+
+
 @router.get("/query", response_model=GraphResponse)
 async def query_graph(
     cypher: Optional[str] = Query(None, description="Cypher query"),

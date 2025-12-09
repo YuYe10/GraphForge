@@ -51,6 +51,33 @@
             {{ t('graph.load_graph') }}
           </n-button>
 
+          <!-- Document Scope -->
+          <div class="control-item" style="min-width: 320px">
+            <n-select
+              v-model:value="currentDocumentId"
+              :options="documentOptions"
+              placeholder="选择文档（默认全部）"
+              clearable
+              filterable
+              style="width: 260px"
+              @update:value="handleDocumentChange"
+            />
+            <n-input-number
+              v-if="currentDocumentId"
+              v-model:value="documentDepth"
+              :min="1"
+              :max="5"
+              :step="1"
+              size="small"
+              style="width: 120px"
+            >
+              <template #prefix>深度</template>
+            </n-input-number>
+            <n-button v-if="currentDocumentId" size="small" tertiary @click="resetDocumentFilter">
+              查看全部
+            </n-button>
+          </div>
+
           <n-divider vertical />
 
           <!-- Quick Actions -->
@@ -115,6 +142,16 @@
           <n-icon size="20" :component="GitNetworkOutline" />
           <span class="stat-label">{{ t('graph.edges') }}</span>
           <n-number-animation :from="0" :to="graphData.edges.length" :duration="1000" class="stat-value" />
+        </div>
+        <div class="stat-item stat-yellow" v-if="currentDocumentId">
+          <n-icon size="20" :component="InformationCircleOutline" />
+          <span class="stat-label">文本块</span>
+          <n-number-animation :from="0" :to="chunkCount" :duration="1000" class="stat-value" />
+        </div>
+        <div class="stat-item" v-if="docInfo">
+          <n-icon size="20" :component="InformationCircleOutline" />
+          <span class="stat-label">上传时间</span>
+          <span class="stat-value">{{ docInfo.created_at || '未知' }}</span>
         </div>
         <div class="stat-item stat-yellow" v-if="selectedNode">
           <n-icon size="20" :component="InformationCircleOutline" />
@@ -332,7 +369,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useMessage, useDialog } from 'naive-ui'
 import {
@@ -356,6 +394,8 @@ import type { Core, ElementDefinition } from 'cytoscape'
 import dagre from 'cytoscape-dagre'
 import { 
   getGraphData, 
+  getDocumentGraph,
+  listDocuments,
   createNode, 
   updateNode, 
   deleteNode, 
@@ -368,7 +408,13 @@ cytoscape.use(dagre)
 const { t } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
+const route = useRoute()
+const router = useRouter()
 const nodeLimit = ref(100)
+const documentDepth = ref(2)
+const currentDocumentId = ref<string | null>(null)
+const documentOptions = ref<Array<{ label: string; value: string; meta?: any }>>([])
+const docInfo = ref<{ id: string; filename?: string; created_at?: string } | null>(null)
 const loading = ref(false)
 const graphContainer = ref<HTMLElement | null>(null)
 const graphData = ref<{ nodes: ElementDefinition[]; edges: ElementDefinition[] } | null>(null)
@@ -414,10 +460,41 @@ const layoutOptions = [
   { label: '力导向', value: 'cose' }
 ]
 
+const loadDocuments = async () => {
+  try {
+    const result = await listDocuments(0, 100)
+    const docs = result?.documents || []
+    documentOptions.value = docs.map((doc: any) => ({
+      label: `${doc.filename} (${doc.id})`,
+      value: doc.id,
+      meta: doc
+    }))
+  } catch (err) {
+    console.warn('加载文档列表失败', err)
+  }
+}
+
+const handleDocumentChange = async (value: string | null) => {
+  currentDocumentId.value = value
+  if (value) {
+    await router.replace({ path: '/graph', query: { doc_id: value } })
+  } else {
+    await router.replace({ path: '/graph' })
+  }
+  await loadGraph()
+}
+
 const loadGraph = async () => {
   loading.value = true
   try {
-    const result = await getGraphData(nodeLimit.value)
+    // 优先使用路由中的 doc_id 过滤，默认加载全量图谱
+    const routeDocId = (route.query.doc_id as string) || null
+    currentDocumentId.value = currentDocumentId.value || routeDocId
+    const docId = currentDocumentId.value
+
+    const result = docId
+      ? await getDocumentGraph(docId, documentDepth.value)
+      : await getGraphData(nodeLimit.value)
     
     if (!result) {
       message.warning(t('graph.no_data'))
@@ -456,6 +533,25 @@ const loadGraph = async () => {
     }
 
     graphData.value = { nodes, edges }
+
+    // 提取当前文档元信息（上传时间等）
+    if (docId) {
+      const docNode = nodes.find((n: any) => {
+        const cls = (n.classes || '').toLowerCase()
+        return n.data.id === docId || cls.includes('document')
+      })
+      if (docNode) {
+        docInfo.value = {
+          id: docId,
+          filename: docNode.data.filename,
+          created_at: docNode.data.created_at || docNode.data.createdAt
+        }
+      } else {
+        docInfo.value = { id: docId }
+      }
+    } else {
+      docInfo.value = null
+    }
 
     if (nodes.length === 0) {
       message.warning(t('graph.no_nodes'))
@@ -685,6 +781,13 @@ const exportGraph = () => {
   message.success('图谱已导出')
 }
 
+const resetDocumentFilter = async () => {
+  // 清除 doc_id 查询参数，回到全局图谱
+  currentDocumentId.value = null
+  await router.replace({ path: '/graph' })
+  await loadGraph()
+}
+
 // ========== Node CRUD Operations ==========
 
 const handleEditNode = () => {
@@ -855,7 +958,25 @@ const availableNodes = computed(() => {
   }))
 })
 
+const chunkCount = computed(() => {
+  if (!graphData.value) return 0
+  return graphData.value.nodes.filter((node: any) => {
+    const type = (node.data.type || '').toLowerCase()
+    const classes = (node.classes || '').toLowerCase()
+    return type === 'chunk' || classes.includes('chunk')
+  }).length
+})
+
+// 路由参数变化时自动切换图谱视图
+watch(
+  () => route.query.doc_id,
+  async () => {
+    await loadGraph()
+  }
+)
+
 onMounted(() => {
+  loadDocuments()
   loadGraph()
 })
 

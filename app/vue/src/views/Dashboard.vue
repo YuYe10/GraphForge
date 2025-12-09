@@ -150,6 +150,17 @@
             <n-icon class="action-arrow" size="16"><arrow-forward-outline /></n-icon>
           </div>
 
+          <div class="action-card" @click="$router.push('/documents')">
+            <div class="action-icon" style="background: linear-gradient(135deg, #3b82f6, #1e40af);">
+              <n-icon size="28"><document-text-outline /></n-icon>
+            </div>
+            <div class="action-content">
+              <div class="action-title">文档管理</div>
+              <div class="action-desc">查看和管理已上传文档</div>
+            </div>
+            <n-icon class="action-arrow" size="16"><arrow-forward-outline /></n-icon>
+          </div>
+
           <div class="action-card" @click="$router.push('/graph')">
             <div class="action-icon" style="background: linear-gradient(135deg, #c9a668, #9a7509);">
               <n-icon size="28"><git-network-outline /></n-icon>
@@ -184,21 +195,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Recent Documents Table -->
-    <div class="table-section">
-      <div class="section-header">
-        <n-icon size="20"><time-outline /></n-icon>
-        <h3>最近上传的文档</h3>
-      </div>
-      <n-data-table
-        :columns="docColumns"
-        :data="stats.recentDocuments || []"
-        :bordered="false"
-        :single-line="false"
-        :loading="loading"
-      />
     </div>
 
     <!-- System Status -->

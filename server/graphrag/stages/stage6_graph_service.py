@@ -2,26 +2,280 @@
 阶段 6: 幂等落库 (Graph Service)
 
 将构建结果写入 Neo4j，确保幂等性与证据回溯
+优化版本：仅存储5种允许的实体和5种允许的关系
 """
 
 import logging
 from typing import Dict, Any, List
 from infra.neo4j_client import Neo4jClient
+from graphrag.utils.domain_filter import get_domain_filter
 
 logger = logging.getLogger("graphrag.stage6")
+
+# 仅允许的5种实体类型
+ALLOWED_ENTITY_TYPES = {
+    "KnowledgePoint",  # 知识点
+    "Content",         # 知识点内容
+    "Document",        # 文档
+    "Question",        # 题目
+    "Timestamp"        # 时间戳
+}
+
+# 仅允许的5种关系类型
+ALLOWED_RELATIONSHIP_TYPES = {
+    "BELONGS_TO",      # 子知识点属于父知识点
+    "FROM",            # 知识点从文档中提取
+    "PRACTICES_IS",    # 题目中提到知识点
+    "HAS_TIMESTAMP",   # 文档的更新时间戳
+    "IS"               # 知识点的内容是什么
+}
 
 
 class GraphService:
     """
-    图谱服务
+    图谱服务（软件工程领域优化版本）
     
     负责将构建结果写入 Neo4j，支持幂等性与证据回溯
+    - 仅存储5种允许的实体类型
+    - 仅存储5种允许的关系
+    - 过滤所有其他实体和关系
     """
     
     def __init__(self):
-        logger.info("GraphService initialized")
+        logger.info("GraphService initialized (software engineering domain, 5 entities & 5 relationships only)")
         self.neo4j_client = Neo4jClient()
         self.neo4j_client.initialize()
+        self.domain_filter = get_domain_filter()
+        
+        # 统计信息
+        self.stats = {
+            "entities_written": 0,
+            "entities_filtered": 0,
+            "relationships_written": 0,
+            "relationships_filtered": 0
+        }
+    
+    def store_entity(self, entity_type: str, entity: Dict[str, Any]) -> bool:
+        """
+        存储实体节点（仅允许5种类型）
+        
+        Args:
+            entity_type: 实体类型
+            entity: 实体数据
+        
+        Returns:
+            是否成功存储
+        """
+        # 1. 检查实体类型是否允许
+        if entity_type not in ALLOWED_ENTITY_TYPES:
+            logger.debug(f"过滤实体（类型不允许）: {entity_type} - {entity.get('name', entity.get('id'))}")
+            self.stats["entities_filtered"] += 1
+            return False
+        
+        # 2. 对KnowledgePoint进行额外的领域检查
+        if entity_type == "KnowledgePoint":
+            is_valid, domain_conf = self.domain_filter.is_software_engineering_entity(
+                entity.get("name", ""),
+                entity_type=entity_type
+            )
+            if not is_valid and domain_conf < 0.3:
+                logger.debug(f"过滤知识点（不属于软件工程领域）: {entity.get('name')}")
+                self.stats["entities_filtered"] += 1
+                return False
+        
+        # 3. 根据实体类型调用相应的存储方法
+        try:
+            if entity_type == "KnowledgePoint":
+                self._store_knowledge_point(entity)
+            elif entity_type == "Content":
+                self._store_content(entity)
+            elif entity_type == "Document":
+                self._store_document(entity)
+            elif entity_type == "Question":
+                self._store_question(entity)
+            elif entity_type == "Timestamp":
+                self._store_timestamp(entity)
+            
+            self.stats["entities_written"] += 1
+            logger.debug(f"存储实体成功: {entity_type} - {entity.get('name', entity.get('id'))}")
+            return True
+        except Exception as e:
+            logger.error(f"存储实体失败 ({entity_type}): {e}")
+            return False
+    
+    def store_relationship(
+        self,
+        rel_type: str,
+        source_id: str,
+        target_id: str,
+        rel_data: Dict[str, Any]
+    ) -> bool:
+        """
+        存储关系（仅允许5种类型）
+        
+        Args:
+            rel_type: 关系类型
+            source_id: 源节点ID
+            target_id: 目标节点ID
+            rel_data: 关系数据
+        
+        Returns:
+            是否成功存储
+        """
+        # 1. 检查关系类型是否允许
+        if rel_type not in ALLOWED_RELATIONSHIP_TYPES:
+            logger.debug(f"过滤关系（类型不允许）: {source_id} -[{rel_type}]-> {target_id}")
+            self.stats["relationships_filtered"] += 1
+            return False
+        
+        # 2. 存储关系
+        try:
+            query = f"""
+            MERGE (s {{id: $source_id}})
+            MERGE (t {{id: $target_id}})
+            MERGE (s)-[r:{rel_type}]->(t)
+            SET r.confidence = $confidence,
+                r.source_id = $source_id,
+                r.target_id = $target_id,
+                r.created_at = CASE WHEN r.created_at IS NULL THEN datetime() ELSE r.created_at END,
+                r.updated_at = datetime()
+            """
+            
+            params = {
+                "source_id": source_id,
+                "target_id": target_id,
+                "confidence": rel_data.get("confidence", 0.8)
+            }
+            
+            # 添加额外的关系属性
+            for key, value in rel_data.items():
+                if key != "confidence":
+                    query += f",\n            r.{key} = ${key}"
+                    params[key] = value
+            
+            self.neo4j_client.execute_query(query, params)
+            self.stats["relationships_written"] += 1
+            logger.debug(f"存储关系成功: {source_id} -[{rel_type}]-> {target_id}")
+            return True
+        except Exception as e:
+            logger.error(f"存储关系失败: {e}")
+            return False
+    
+    def _store_knowledge_point(self, kp: Dict[str, Any]):
+        """存储知识点节点"""
+        query = """
+        MERGE (kp:KnowledgePoint {id: $id})
+        SET kp.name = $name,
+            kp.description = $description,
+            kp.domain = $domain,
+            kp.category = $category,
+            kp.level = $level,
+            kp.keywords = $keywords,
+            kp.embedding = $embedding,
+            kp.updated_at = datetime(),
+            kp.created_at = CASE WHEN kp.created_at IS NULL THEN datetime() ELSE kp.created_at END
+        """
+        
+        params = {
+            "id": kp.get("id"),
+            "name": kp.get("name"),
+            "description": kp.get("description"),
+            "domain": "software_engineering",
+            "category": kp.get("category"),
+            "level": kp.get("level"),
+            "keywords": kp.get("keywords", []),
+            "embedding": kp.get("embedding")
+        }
+        
+        self.neo4j_client.execute_query(query, params)
+    
+    def _store_content(self, content: Dict[str, Any]):
+        """存储内容节点"""
+        query = """
+        MERGE (c:Content {id: $id})
+        SET c.text = $text,
+            c.type = $type,
+            c.language = $language,
+            c.code_snippet = $code_snippet,
+            c.embedding = $embedding,
+            c.updated_at = datetime(),
+            c.created_at = CASE WHEN c.created_at IS NULL THEN datetime() ELSE c.created_at END
+        """
+        
+        params = {
+            "id": content.get("id"),
+            "text": content.get("text"),
+            "type": content.get("type"),
+            "language": content.get("language"),
+            "code_snippet": content.get("code_snippet"),
+            "embedding": content.get("embedding")
+        }
+        
+        self.neo4j_client.execute_query(query, params)
+    
+    def _store_document(self, doc: Dict[str, Any]):
+        """存储文档节点"""
+        query = """
+        MERGE (d:Document {id: $id})
+        SET d.title = $title,
+            d.url = $url,
+            d.source_type = $source_type,
+            d.author = $author,
+            d.updated_at = datetime(),
+            d.created_at = CASE WHEN d.created_at IS NULL THEN datetime() ELSE d.created_at END
+        """
+        
+        params = {
+            "id": doc.get("id"),
+            "title": doc.get("title"),
+            "url": doc.get("url"),
+            "source_type": doc.get("source_type"),
+            "author": doc.get("author")
+        }
+        
+        self.neo4j_client.execute_query(query, params)
+    
+    def _store_question(self, q: Dict[str, Any]):
+        """存储题目节点"""
+        query = """
+        MERGE (q:Question {id: $id})
+        SET q.title = $title,
+            q.description = $description,
+            q.difficulty = $difficulty,
+            q.category = $category,
+            q.url = $url,
+            q.updated_at = datetime(),
+            q.created_at = CASE WHEN q.created_at IS NULL THEN datetime() ELSE q.created_at END
+        """
+        
+        params = {
+            "id": q.get("id"),
+            "title": q.get("title"),
+            "description": q.get("description"),
+            "difficulty": q.get("difficulty"),
+            "category": q.get("category"),
+            "url": q.get("url")
+        }
+        
+        self.neo4j_client.execute_query(query, params)
+    
+    def _store_timestamp(self, ts: Dict[str, Any]):
+        """存储时间戳节点"""
+        query = """
+        MERGE (t:Timestamp {id: $id})
+        SET t.value = $value,
+            t.formatted_date = $formatted_date,
+            t.epoch_seconds = $epoch_seconds
+        """
+        
+        params = {
+            "id": ts.get("id"),
+            "value": ts.get("value"),
+            "formatted_date": ts.get("formatted_date"),
+            "epoch_seconds": ts.get("epoch_seconds")
+        }
+        
+        self.neo4j_client.execute_query(query, params)
     
     def store_chunk(self, chunk: Dict[str, Any]):
         """

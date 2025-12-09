@@ -1,10 +1,13 @@
 """File upload routes."""
 import uuid
 import hashlib
+import json
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from infra.neo4j_client import neo4j_client
@@ -16,6 +19,7 @@ from services.graph_service import GraphService
 from services.ai_segmenter import AISegmenter
 from models.document import AIExtractionRequest
 from infra.queue import get_queue
+from infra.config import settings
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -152,19 +156,289 @@ async def upload_file(file: UploadFile = File(...)):
     }
 
 
+@router.get("")
+async def list_documents(
+    skip: int = 0,
+    limit: int = 50,
+    sort_by: str = "created_at"  # "created_at" or "filename"
+):
+    """
+    获取所有已上传的文档列表
+    
+    Args:
+        skip: 跳过的文档数
+        limit: 返回的最大文档数
+        sort_by: 排序字段 (created_at 或 filename)
+    
+    Returns:
+        {
+            "total": 总数,
+            "documents": [
+                {
+                    "id": "...",
+                    "filename": "...",
+                    "kind": "...",
+                    "size": ...,
+                    "created_at": "...",
+                    "updated_at": "...",
+                    "chunk_count": ...,
+                    "concept_count": ...,
+                    "claim_count": ...,
+                    "processing_status": "..."
+                }
+            ]
+        }
+    """
+    # 合法化参数
+    skip = max(0, skip)
+    limit = min(limit, 100)  # 最多返回 100 条
+    
+    # 获取总数
+    total_result = neo4j_client.execute_query(
+        "MATCH (d:Document) RETURN count(d) as total"
+    )
+    total = total_result[0]["total"] if total_result else 0
+    
+    # 构建排序子句
+    order_clause = "d.created_at DESC"
+    if sort_by == "filename":
+        order_clause = "d.filename ASC"
+    
+    # 获取文档列表
+    query = f"""
+    MATCH (d:Document)
+    OPTIONAL MATCH (d)-[rel]-(related)
+    WITH d, count(DISTINCT rel) as rel_count, 
+         count(DISTINCT CASE WHEN 'Chunk' IN labels(related) THEN related END) as chunk_count,
+         count(DISTINCT CASE WHEN 'Concept' IN labels(related) THEN related END) as concept_count,
+         count(DISTINCT CASE WHEN 'Claim' IN labels(related) THEN related END) as claim_count
+    RETURN DISTINCT
+        d.id AS id,
+        d.filename AS filename,
+        d.kind AS kind,
+        d.size AS size,
+        d.created_at AS created_at,
+        d.updated_at AS updated_at,
+        d.checksum AS checksum,
+        chunk_count,
+        concept_count,
+        claim_count,
+        rel_count,
+        coalesce(d.processing_status, "") AS processing_status
+    ORDER BY {order_clause}
+    SKIP {skip}
+    LIMIT {limit}
+    """
+    
+    results = neo4j_client.execute_query(query)
+    
+    documents = []
+    for row in results:
+        # 检查文档的处理状态（通过是否有关联节点）
+        chunk_count = row.get("chunk_count", 0) or 0
+        rel_count = row.get("rel_count", 0) or 0
+        persisted_status = row.get("processing_status") or ""
+        processing_status = persisted_status or ("completed" if chunk_count > 0 or rel_count > 0 else "uploaded")
+        
+        documents.append({
+            "id": row.get("id"),
+            "filename": row.get("filename"),
+            "kind": row.get("kind"),
+            "size": row.get("size"),
+            "created_at": row.get("created_at"),
+            "updated_at": row.get("updated_at"),
+            "checksum": row.get("checksum"),
+            "chunk_count": chunk_count,
+            "concept_count": row.get("concept_count", 0) or 0,
+            "claim_count": row.get("claim_count", 0) or 0,
+            "processing_status": processing_status
+        })
+    
+    return {
+        "total": total,
+        "documents": documents
+    }
+
+
 @router.get("/{document_id}")
 async def get_document(document_id: str):
-    """Get document information."""
-    result = neo4j_client.execute_query(
+    """
+    获取文档详细信息
+    
+    Returns:
+        {
+            "id": "...",
+            "filename": "...",
+            "kind": "...",
+            "size": ...,
+            "created_at": "...",
+            "updated_at": "...",
+            "checksum": "...",
+            "mime": "...",
+            "meta": {...},
+            "statistics": {
+                "chunk_count": ...,
+                "concept_count": ...,
+                "claim_count": ...,
+                "relation_count": ...
+            },
+            "themes": [
+                {
+                    "id": "...",
+                    "label": "...",
+                    "level": ...,
+                    "member_count": ...
+                }
+            ],
+            "processing_status": "..."
+        }
+    """
+    # 获取基本文档信息
+    doc_result = neo4j_client.execute_query(
         "MATCH (d:Document {id: $doc_id}) RETURN d",
         {"doc_id": document_id}
     )
     
-    if not result:
+    if not doc_result:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    doc_data = result[0]["d"]
-    return doc_data
+    doc_data = doc_result[0]["d"]
+    
+    # 获取统计信息
+    stats_query = """
+    MATCH (d:Document {id: $doc_id})
+    OPTIONAL MATCH (d)-[rel]-(related)
+    WITH d, 
+         count(DISTINCT CASE WHEN 'Chunk' IN labels(related) THEN related END) as chunk_count,
+         count(DISTINCT CASE WHEN 'Concept' IN labels(related) THEN related END) as concept_count,
+         count(DISTINCT CASE WHEN 'Claim' IN labels(related) THEN related END) as claim_count,
+         count(DISTINCT rel) as relation_count
+    RETURN
+        chunk_count,
+        concept_count,
+        claim_count,
+        relation_count
+    """
+    
+    stats_result = neo4j_client.execute_query(stats_query, {"doc_id": document_id})
+    statistics = {
+        "chunk_count": stats_result[0].get("chunk_count", 0) or 0,
+        "concept_count": stats_result[0].get("concept_count", 0) or 0,
+        "claim_count": stats_result[0].get("claim_count", 0) or 0,
+        "relation_count": stats_result[0].get("relation_count", 0) or 0
+    } if stats_result else {
+        "chunk_count": 0,
+        "concept_count": 0,
+        "claim_count": 0,
+        "relation_count": 0
+    }
+    
+    # 获取关联的主题
+    themes_query = """
+    MATCH (d:Document {id: $doc_id})<-[:BELONGS_TO]-(c:Concept)-[:BELONGS_TO_THEME]->(t:Theme)
+    RETURN DISTINCT
+        t.id AS id,
+        t.label AS label,
+        t.level AS level,
+        t.member_count AS member_count,
+        t.summary AS summary
+    LIMIT 20
+    """
+    
+    themes_result = neo4j_client.execute_query(themes_query, {"doc_id": document_id})
+    themes = [
+        {
+            "id": t.get("id"),
+            "label": t.get("label"),
+            "level": t.get("level"),
+            "member_count": t.get("member_count"),
+            "summary": t.get("summary")
+        }
+        for t in themes_result
+    ]
+    
+    # 组合响应
+    return {
+        "id": doc_data.get("id"),
+        "filename": doc_data.get("filename"),
+        "kind": doc_data.get("kind"),
+        "size": doc_data.get("size"),
+        "created_at": doc_data.get("created_at"),
+        "updated_at": doc_data.get("updated_at"),
+        "checksum": doc_data.get("checksum"),
+        "mime": doc_data.get("mime"),
+        "meta": doc_data.get("meta", {}),
+        "statistics": statistics,
+        "themes": themes,
+        "processing_status": "completed" if statistics["chunk_count"] > 0 else "uploaded"
+    }
+
+
+@router.get("/{document_id}/file")
+async def download_document_file(document_id: str):
+    """下载或预览文档原文件，供前端内嵌查看 (PDF/TXT/MD 等)。"""
+    result = neo4j_client.execute_query(
+        "MATCH (d:Document {id: $doc_id}) RETURN d",
+        {"doc_id": document_id}
+    )
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc_node = result[0]["d"]
+
+    # 解析 meta，兼容字符串/JSON/字典
+    raw_meta = doc_node.get("meta")
+    meta = {}
+    if isinstance(raw_meta, dict):
+        meta = raw_meta
+    elif isinstance(raw_meta, str):
+        try:
+            meta = json.loads(raw_meta)
+            if isinstance(meta, str):  # 双重编码的情况
+                meta = json.loads(meta)
+        except Exception:
+            meta = {}
+
+    file_path = meta.get("path") if isinstance(meta, dict) else None
+
+    # 如果 meta 没有路径，尝试根据 checksum 找文件
+    if not file_path:
+        checksum = doc_node.get("checksum")
+        if checksum:
+            existing = storage.file_exists(checksum)
+            if existing:
+                file_path = existing
+
+    # 仍然没有路径则直接报错
+
+    if not file_path:
+        raise HTTPException(status_code=404, detail="File path not found")
+
+    abs_path = Path(file_path)
+    if not abs_path.is_absolute():
+        # 如果是相对路径，优先相对于上传目录，其次当前工作目录
+        abs_path = Path(settings.upload_dir) / file_path if not file_path.startswith(str(Path(settings.upload_dir))) else Path(file_path)
+        if not abs_path.exists():
+            abs_path = Path.cwd() / file_path
+
+    if not abs_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on server")
+
+    media_type = doc_node.get("mime") or "application/octet-stream"
+    filename = doc_node.get("filename") or abs_path.name
+    
+    # URL encode the filename to handle non-ASCII characters (Chinese, etc.)
+    encoded_filename = quote(filename)
+
+    headers = {"Content-Disposition": f'inline; filename*=UTF-8\'\'{encoded_filename}'}
+
+    return FileResponse(
+        abs_path,
+        media_type=media_type,
+        filename=filename,
+        headers=headers
+    )
 
 
 def _update_upload_status(job_id: str, status: str, progress: int, message: str, **kwargs):

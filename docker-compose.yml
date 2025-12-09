@@ -1,8 +1,7 @@
-version: "3.9"
 
 services:
-  neo4j:
-    image: neo4j:5.15-community
+  powneo4j:
+    image: neo4j:5.26-community
     container_name: pow-neo4j
     environment:
       - NEO4J_AUTH=neo4j/neo4j1234
@@ -24,8 +23,8 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
+  powredis:
+    image: redis:7.4.7-alpine
     container_name: pow-redis
     ports:
       - "6379:6379"

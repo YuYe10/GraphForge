@@ -7,6 +7,25 @@ from models.graph import GraphQuery, GraphResponse, Node, Edge, NodeCreate, Node
 router = APIRouter(prefix="/graph", tags=["graph"])
 
 
+def _clean_properties(props: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Clean properties dict to ensure all values are JSON-serializable.
+    Converts Neo4j DateTime and Python datetime objects to ISO format strings.
+    """
+    clean_props = {}
+    for k, v in props.items():
+        if hasattr(v, 'isoformat'):
+            # Python datetime/date/time objects
+            clean_props[k] = v.isoformat()
+        elif hasattr(v, 'to_native'):
+            # Neo4j DateTime objects
+            native_val = v.to_native()
+            clean_props[k] = native_val.isoformat() if hasattr(native_val, 'isoformat') else str(v)
+        else:
+            clean_props[k] = v
+    return clean_props
+
+
 @router.get("/visualize")
 async def visualize_graph(
     limit: int = Query(500, ge=10, le=5000, description="Maximum nodes to return"),
@@ -196,7 +215,7 @@ async def query_graph(
                     nodes_dict[node_id] = Node(
                         id=str(node_id),
                         labels=labels,
-                        properties=props
+                        properties=neo4j_client._convert_neo4j_types(props)
                     )
             
             if "m" in record and record["m"]:
@@ -212,7 +231,7 @@ async def query_graph(
                     nodes_dict[node_id] = Node(
                         id=str(node_id),
                         labels=labels,
-                        properties=props
+                        properties=neo4j_client._convert_neo4j_types(props)
                     )
             
             # Extract relationships
@@ -242,12 +261,24 @@ async def query_graph(
                             source=str(source_id),
                             target=str(target_id),
                             type=rel_type,
-                            properties=rel_props
+                            properties=neo4j_client._convert_neo4j_types(rel_props)
                         ))
         
+        # Create response with cleaned properties
+        response_nodes = [
+            Node(id=node.id, labels=node.labels, properties=_clean_properties(node.properties))
+            for node in nodes_dict.values()
+        ]
+        
+        response_edges = [
+            Edge(id=edge.id, source=edge.source, target=edge.target, type=edge.type,
+                 properties=_clean_properties(edge.properties))
+            for edge in edges
+        ]
+        
         return GraphResponse(
-            nodes=list(nodes_dict.values()),
-            edges=edges,
+            nodes=response_nodes,
+            edges=response_edges,
             stats={"count": len(results)}
         )
     
@@ -281,7 +312,7 @@ async def get_nodes(
         nodes.append(Node(
             id=str(node_id),
             labels=labels,
-            properties=props
+            properties=neo4j_client._convert_neo4j_types(props)
         ))
     
     return nodes
@@ -326,7 +357,7 @@ async def get_edges(
                 source=str(source_id),
                 target=str(target_id),
                 type=rel_type_str,
-                properties=rel_props
+                properties=neo4j_client._convert_neo4j_types(rel_props)
             ))
     
     return edges
@@ -356,13 +387,13 @@ async def get_document_graph(
     if not doc_check:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Query for document and related concepts with specified depth
+    # Query for document and related nodes up to depth, with conservative limits to avoid OOM
     query = f"""
     MATCH (d:Document {{id: $doc_id}})
-    MATCH path = (d)-[*1..{depth}]-(n)
+    OPTIONAL MATCH path = (d)-[*1..{depth}]-(n)
     WITH d, n, relationships(path) as rels
+    LIMIT 300
     RETURN d, n, rels
-    LIMIT 1000
     """
     
     results = neo4j_client.execute_query(query, {"doc_id": document_id})
@@ -385,7 +416,7 @@ async def get_document_graph(
                 nodes_dict[doc_id_val] = Node(
                     id=str(doc_id_val),
                     labels=doc_labels,
-                    properties=doc_props
+                    properties=neo4j_client._convert_neo4j_types(doc_props)
                 )
         
         # Add related node
@@ -402,8 +433,9 @@ async def get_document_graph(
                 nodes_dict[node_id] = Node(
                     id=str(node_id),
                     labels=labels,
-                    properties=props
+                    properties=neo4j_client._convert_neo4j_types(props)
                 )
+
         
         # Add relationships
         if "rels" in record and record["rels"]:
@@ -428,13 +460,33 @@ async def get_document_graph(
                         source=str(source_id),
                         target=str(target_id),
                         type=rel_type,
-                        properties=rel_props
+                        properties=neo4j_client._convert_neo4j_types(rel_props)
                     ))
+
     
+    # 标记文档状态为已处理（即在图中可见）
+    try:
+        neo4j_client.mark_document_processed(document_id, "completed")
+    except Exception:
+        # best-effort，不阻塞图谱返回
+        pass
+
+    # Create response with cleaned properties (convert DateTime to ISO strings)
+    response_nodes = [
+        Node(id=node.id, labels=node.labels, properties=_clean_properties(node.properties))
+        for node in nodes_dict.values()
+    ]
+    
+    response_edges = [
+        Edge(id=edge.id, source=edge.source, target=edge.target, type=edge.type, 
+             properties=_clean_properties(edge.properties))
+        for edge in edges
+    ]
+
     return GraphResponse(
-        nodes=list(nodes_dict.values()),
-        edges=edges,
-        stats={"count": len(nodes_dict), "edges": len(edges)}
+        nodes=response_nodes,
+        edges=response_edges,
+        stats={"count": len(response_nodes), "edges": len(response_edges)}
     )
 
 
@@ -508,7 +560,7 @@ async def get_concept_graph(
                 nodes_dict[node_id] = Node(
                     id=str(node_id),
                     labels=labels,
-                    properties=props
+                    properties=neo4j_client._convert_neo4j_types(props)
                 )
         
         # Add relationships
@@ -534,13 +586,25 @@ async def get_concept_graph(
                         source=str(source_id),
                         target=str(target_id),
                         type=rel_type,
-                        properties=rel_props
+                        properties=neo4j_client._convert_neo4j_types(rel_props)
                     ))
     
+    # Create response with cleaned properties
+    response_nodes = [
+        Node(id=node.id, labels=node.labels, properties=_clean_properties(node.properties))
+        for node in nodes_dict.values()
+    ]
+    
+    response_edges = [
+        Edge(id=edge.id, source=edge.source, target=edge.target, type=edge.type,
+             properties=_clean_properties(edge.properties))
+        for edge in edges
+    ]
+    
     return GraphResponse(
-        nodes=list(nodes_dict.values()),
-        edges=edges,
-        stats={"count": len(nodes_dict), "edges": len(edges)}
+        nodes=response_nodes,
+        edges=response_edges,
+        stats={"count": len(response_nodes), "edges": len(response_edges)}
     )
 
 
@@ -686,7 +750,7 @@ async def create_node(node_data: NodeCreate = Body(...)):
         return Node(
             id=str(props.get("id")),
             labels=labels,
-            properties=props
+            properties=neo4j_client._convert_neo4j_types(props)
         )
     
     except Exception as e:
@@ -725,7 +789,7 @@ async def get_node(node_id: str):
         return Node(
             id=str(props.get("id") or props.get("name") or node_id),
             labels=labels,
-            properties=props
+            properties=neo4j_client._convert_neo4j_types(props)
         )
     
     except HTTPException:
@@ -811,7 +875,7 @@ async def update_node(node_id: str, node_data: NodeUpdate = Body(...)):
         return Node(
             id=str(props.get("id") or props.get("name") or node_id),
             labels=labels,
-            properties=props
+            properties=neo4j_client._convert_neo4j_types(props)
         )
     
     except HTTPException:
@@ -963,7 +1027,7 @@ async def create_edge(edge_data: EdgeCreate = Body(...)):
             source=str(source_id),
             target=str(target_id),
             type=rel_type,
-            properties=rel_props
+            properties=neo4j_client._convert_neo4j_types(rel_props)
         )
     
     except HTTPException:
@@ -1075,7 +1139,7 @@ async def update_edge(
             source=str(actual_source_id),
             target=str(actual_target_id),
             type=rel_type_actual,
-            properties=rel_props
+            properties=neo4j_client._convert_neo4j_types(rel_props)
         )
     
     except HTTPException:

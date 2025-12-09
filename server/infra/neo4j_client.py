@@ -328,6 +328,17 @@ class Neo4jClient:
             "meta_json": meta_json
         })
         return len(result) > 0
+
+    def mark_document_processed(self, doc_id: str, status: str = "completed") -> bool:
+        """Mark a document as processed with a status flag."""
+        query = """
+        MATCH (d:Document {id: $doc_id})
+        SET d.processing_status = $status,
+            d.updated_at = datetime()
+        RETURN d
+        """
+        result = self.execute_query(query, {"doc_id": doc_id, "status": status})
+        return len(result) > 0
     
     def create_concept(self, name: str, domain: Optional[str] = None, 
                       meta: Optional[Dict] = None) -> bool:

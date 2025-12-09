@@ -1,5 +1,8 @@
 import api from './index'
 
+// Expose API base for constructing absolute URLs (e.g., file preview)
+export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+
 // Types
 export interface DashboardStats {
   total_nodes: number
@@ -201,19 +204,86 @@ export const uploadUrl = (
 export const startIngestion = (documentId: string): Promise<IngestionResponse> => 
   api.post(`/ingest/${documentId}`)
 
+// Documents Management
+export interface DocumentListResponse {
+  total: number
+  documents: Array<{
+    id: string
+    filename: string
+    kind: string
+    size: number
+    created_at: string
+    updated_at: string
+    checksum: string
+    chunk_count: number
+    concept_count: number
+    claim_count: number
+    processing_status: string
+  }>
+}
+
+export interface DocumentDetail {
+  id: string
+  filename: string
+  kind: string
+  size: number
+  created_at: string
+  updated_at: string
+  checksum: string
+  mime: string
+  meta: Record<string, any>
+  statistics: {
+    chunk_count: number
+    concept_count: number
+    claim_count: number
+    relation_count: number
+  }
+  themes: Array<{
+    id: string
+    label: string
+    level: number
+    member_count: number
+    summary: string
+  }>
+  processing_status: string
+}
+
+export const listDocuments = (skip: number = 0, limit: number = 50, sortBy: string = 'created_at'): Promise<DocumentListResponse> =>
+  api.get('/uploads', {
+    params: {
+      skip,
+      limit,
+      sort_by: sortBy
+    }
+  })
+
+export const getDocumentDetail = (documentId: string): Promise<DocumentDetail> =>
+  api.get(`/uploads/${documentId}`)
+
+// Get file download/preview URL for embedding in viewer
+export const getDocumentFileUrl = (documentId: string): string => `${API_BASE}/uploads/${documentId}/file`
+
 // Graph
-export const getGraphData = (limit: number = 500): Promise<any> => 
+export const getGraphData = (limit: number = 500): Promise<any> =>
   api.get('/graph/visualize', {
     params: {
       limit: Math.min(limit, 5000)
     }
   })
 
-export const getGraphDataByType = (nodeType: string, limit: number = 500): Promise<any> => 
+export const getGraphDataByType = (nodeType: string, limit: number = 500): Promise<any> =>
   api.get('/graph/visualize', {
     params: {
       limit: Math.min(limit, 5000),
       node_type: nodeType
+    }
+  })
+
+// Graph by document
+export const getDocumentGraph = (documentId: string, depth: number = 2): Promise<any> =>
+  api.get(`/graph/documents/${documentId}/graph`, {
+    params: {
+      depth: Math.max(1, Math.min(depth, 5))
     }
   })
 

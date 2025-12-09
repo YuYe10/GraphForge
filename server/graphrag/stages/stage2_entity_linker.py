@@ -1,12 +1,13 @@
 """
 阶段 2: 实体链接 (Entity Linking)
 
-优化版本：多路召回 + 精排 + NIL 检测
+优化版本：多路召回 + 精排 + NIL 检测 + 领域过滤
 - 别名词典召回（复用 stage1 的 alias_map）
 - BM25 + 向量检索候选生成
 - 5维特征精排（词形、语义、上下文、类型、频次）
 - NIL 检测与新概念创建
 - 分类型阈值（Person/Organization vs Method/Tool）
+- 软件工程领域过滤（过滤无关实体）
 """
 
 import logging
@@ -20,6 +21,7 @@ from infra.neo4j_client import neo4j_client
 from infra.config import settings
 from services.config_service import config_service
 from graphrag.utils.embedding import get_embedding, cosine_similarity
+from graphrag.utils.domain_filter import get_domain_filter
 
 logger = logging.getLogger("graphrag.stage2")
 
@@ -65,17 +67,22 @@ class EntityLinker:
     """
     实体链接器（优化版本）
     
-    实现多路召回 + 精排 + NIL 检测流程：
+    实现多路召回 + 精排 + NIL 检测 + 领域过滤流程：
     1. 多路召回：别名词典（stage1 alias_map）+ BM25 + 向量检索
     2. 精排：5 特征融合（词形、语义、上下文、类型、频次）
     3. NIL 检测：动态阈值 + top-1 vs top-2 差距判断
     4. 分类型阈值：Person/Organization 较高，Method/Tool 较低
+    5. 领域过滤：仅保留软件工程领域相关实体
     """
     
     def __init__(self):
         self.config = get_config()
         self.thresholds = self.config.thresholds.entity_linking
         self.neo4j_graphrag_available = False
+        
+        # 初始化领域过滤器
+        self.domain_filter = get_domain_filter()
+        logger.info("Domain filter initialized for software engineering domain")
         
         # 获取阈值配置
         self.accept_threshold = self.thresholds.get("accept_threshold", 0.85)
@@ -315,7 +322,24 @@ class EntityLinker:
                 alias_map=alias_map
             )
             if result:
-                linking_results.append(result)
+                # 应用领域过滤（仅保留软件工程相关实体）
+                is_valid, domain_conf = self.domain_filter.is_software_engineering_entity(
+                    result.concept_name,
+                    entity_type="KnowledgePoint"
+                )
+                
+                if is_valid:
+                    # 将领域置信度融合到整体置信度中
+                    result.confidence = (result.confidence + domain_conf) / 2
+                    linking_results.append(result)
+                    logger.debug(
+                        f"[Stage2] 保留实体: {result.concept_name} "
+                        f"(领域置信度: {domain_conf:.2f}, 综合置信度: {result.confidence:.2f})"
+                    )
+                else:
+                    logger.debug(
+                        f"[Stage2] 过滤实体（非软件工程领域）: {result.concept_name}"
+                    )
         
         # 转换为返回格式
         entities = []

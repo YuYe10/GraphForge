@@ -1,219 +1,184 @@
-# POW_SE - 软件工程知识图谱平台
+<div align="center">
 
-面向《软件工程》课程的多模态知识图谱增量式构建平台，采用Neo4j构建课程知识点知识图谱，支持图谱可视化、知识查询和智能问答。
+# 🎓 POW_SE
 
-## 贡献者
+### 软件工程知识图谱平台
 
-1. 俞烨
-2. 张鸿榜
-3. 张璟文
-4. 王劲毅
-5. 李嘉艺
-6. 黄绍华
-7. 张天硕
-8. 刘方博
-9. 陈欣
+**面向《软件工程》课程的多模态知识图谱增量式构建平台**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Vue 3](https://img.shields.io/badge/vue-3.x-green.svg)](https://vuejs.org/)
+[![Neo4j](https://img.shields.io/badge/neo4j-5.x-008CC1.svg)](https://neo4j.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
+
+</div>
+
+---
 
 ## 技术栈
 
-### 前端技术栈
-- **框架**: Vue 3 + TypeScript + Vite
-- **UI组件库**: Naive UI
-- **可视化**: Cytoscape.js + ECharts
-- **状态管理**: Pinia
-- **路由**: Vue Router 4
-- **国际化**: vue-i18n
+### 前端
 
-### 后端技术栈
-- **框架**: FastAPI + Python
-- **图数据库**: Neo4j 5.x
-- **缓存**: Redis
-- **AI集成**: OpenAI API + 自定义GraphRAG算法
-- **任务队列**: RQ (Redis Queue)
+- Vue 3 + TypeScript + Vite
+- Naive UI / ECharts / Cytoscape.js
+- 状态管理: Pinia, 路由: Vue Router, 国际化: vue-i18n
+
+### 后端
+
+- FastAPI + Python 3.11
+- Neo4j 5.x, Redis 6.x, RQ 队列
+- AI 集成: OpenAI / Anthropic 等多模型 (GraphRAG 流水线)
 
 ### 基础设施
-- **容器化**: Docker + Docker Compose
-- **数据库**: Neo4j + Redis
-- **部署**: 支持本地开发和容器化部署
+
+- Docker / Docker Compose
+- Nginx 反向代理
 
 ## 项目结构
-```lua
-POW_SE/
-├── app/vue/                    # Vue 3前端项目
-│   ├── src/
-│   │   ├── views/              # 页面组件
-│   │   │   ├── Dashboard.vue   # 仪表盘
-│   │   │   ├── Upload.vue      # 文档上传
-│   │   │   ├── Graph.vue       # 图谱可视化
-│   │   │   ├── Query.vue       # 知识查询
-│   │   │   └── Status.vue      # 处理状态
-│   │   ├── components/         # 公共组件
-│   │   ├── api/                # API服务
-│   │   ├── stores/             # 状态管理
-│   │   └── i18n/               # 国际化
-│   ├── package.json
-│   └── vite.config.ts
-├── server/                     # FastAPI后端项目
-│   ├── main.py                 # 应用入口文件
-│   ├── routes/                 # API路由
-│   │   ├── upload.py           # 文档上传
-│   │   ├── ingest.py           # 知识抽取
-│   │   ├── graph.py            # 图谱查询
-│   │   └── knowledge_card.py   # 知识卡片
-│   ├── services/               # 业务服务
-│   │   ├── parser.py           # 文档解析
-│   │   ├── extractor.py        # 知识抽取
-│   │   ├── graph_service.py    # 图谱服务
-│   │   └── linker.py           # 实体链接
-│   ├── graphrag/               # GraphRAG模块
-│   │   ├── stages/             # 8个构建阶段
-│   │   ├── models/             # 数据模型
-│   │   ├── config/             # 配置文件
-│   │   └── utils/              # 工具函数
-│   ├── infra/                  # 基础设施
-│   │   ├── neo4j_client.py     # Neo4j客户端
-│   │   └── ai_providers.py     # AI服务提供商
+
+```text
+POW/
+├── DOCUMENTATION_INDEX.md      # 文档总览/导航
+├── app/vue/                    # 前端应用
+│   ├── src/                    # 业务页面、组件、stores、api
+│   └── DEVELOPMENT_GUIDE.md    # 前端开发指南
+├── server/                     # 后端服务
+│   ├── main.py                 # FastAPI 入口
+│   ├── infra/                  # 基础设施(Neo4j/AI/存储/队列)
+│   │   └── README.md
 │   ├── models/                 # 数据模型
-│   └── tests/                  # 测试代码
-├── docker-compose.yml          # Docker Compose配置
-├── uploads/                    # 上传文件目录
-└── data/                       # 数据文件
-```
+│   │   └── README.md
+│   ├── services/               # 业务服务
+│   ├── routes/                 # API 路由
+│   ├── graphrag/               # GraphRAG 八阶段流水线
+│   └── tests/                  # 测试套件与指南
+└── docker-compose.yml
+```text
 
 ## 快速开始
 
-### 环境要求
+### 📋 环境要求
 
-- Python 3.8+
-- Node.js 14+
-- Neo4j 5.x
-- Redis 6.x
+| 组件 | 版本 |
+|------|------|
+| Python | 3.11 (>=3.8 可运行) |
+| Node.js | 18+ |
+| Neo4j | 5.x |
+| Redis | 6.x |
+| Docker (可选) | 20.10+ |
 
-### 安装依赖
-
-**后端依赖:**
-```bash
-cd server
-pip install -r requirements.txt
-```
-
-**前端依赖:**
-```bash
-cd app/vue
-npm install
-```
-
-### 启动服务
-
-**启动后端:**
-```bash
-cd server
-python main.py
-# 或使用PowerShell脚本
-.\start-api.ps1
-```
-
-**启动前端:**
-```bash
-cd app/vue
-npm run dev
-# 或使用PowerShell脚本
-.\start-frontend.ps1
-```
-
-### 访问应用
-
-- 前端应用: http://localhost:3000
-- 后端API: http://localhost:8000
-- API文档: http://localhost:8000/docs
-
-## 功能特性
-
-- 📊 **知识图谱可视化**: 使用Cytoscape.js实现交互式图谱展示
-- 🔍 **智能搜索**: 支持关键词搜索和语义查询
-- 📚 **多模态资源**: 关联文档、视频、代码等学习资源
-- 🤖 **AI知识抽取**: 基于GraphRAG算法的知识实体识别
-- 🔄 **增量构建**: 支持知识图谱的持续更新和扩展
-- 🎯 **智能问答**: 基于知识图谱的智能问答系统
-
-## 核心模块
-
-### GraphRAG知识图谱构建
-- **阶段0**: 篇章切分 - 智能文档分块
-- **阶段1**: 指代消解 - 实体引用解析
-- **阶段2**: 实体链接 - 概念识别与链接
-- **阶段3**: 论断抽取 - 知识三元组提取
-- **阶段4**: 主题社区 - 主题聚类与总结
-- **阶段5**: 谓词治理 - 关系规范化
-- **阶段6**: 幂等落库 - 数据持久化
-- **阶段7**: GraphRAG检索 - 智能检索系统
-
-### 知识卡片管理
-- 概念节点管理
-- 关系连接管理
-- 证据回溯支持
-- 增量更新机制
-
-## 开发指南
-
-### 后端开发
-
-后端采用FastAPI框架，遵循RESTful API设计原则：
-
-```python
-# 示例API端点
-@app.get("/api/graph/nodes")
-async def get_graph_nodes(limit: int = 100):
-    """获取图谱节点数据"""
-    return neo4j_client.get_nodes(limit=limit)
-```
-
-### 前端开发
-
-前端采用Vue 3组合式API，组件化开发：
-
-```vue
-<template>
-  <GraphVisualization :graph-data="graphData" />
-</template>
-
-<script setup>
-import { ref } from 'vue'
-const graphData = ref(null)
-</script>
-```
-
-## 部署说明
-
-使用Docker Compose进行容器化部署：
+### 🐳 使用 Docker Compose 部署数据库
 
 ```bash
+# 克隆项目
+git clone <repository-url>
+cd POW
+
+# 启动前后端 + Neo4j + Redis
 docker-compose up -d
 ```
 
-服务包括：
-- **前端**: Vue应用 (端口8788)
-- **后端**: FastAPI应用 (端口8000)
-- **数据库**: Neo4j图数据库
-- **缓存**: Redis缓存服务
-
-## 测试
-
-项目包含完整的测试框架：
+### 💻 本地开发
 
 ```bash
-# 运行单元测试
+# 后端
 cd server
-pytest tests/
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
 
-# 运行GraphRAG模块测试
-pytest tests/graphrag/
+# 前端
+cd app/vue
+npm install
+npm run dev -- --port 3000
 ```
 
-## 贡献指南
+### 🌐 访问应用
 
-欢迎提交Issue和Pull Request来改进项目！
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| 前端 | <http://localhost:3000> | Vue 3 界面 |
+| 后端 API | <http://localhost:8000> | FastAPI 服务 |
+| API 文档 | <http://localhost:8000/docs> | Swagger UI |
+| Neo4j 控制台 | <http://localhost:7474> | 图数据库管理 |
+
+---
+
+## ✨ 功能特性
+
+### 📚 文档管理
+
+- 多格式解析: PDF / DOCX / TXT / Markdown
+- 增量处理: 仅处理新增片段, 支持内容快照与进度追踪
+
+### 🧠 知识图谱 (GraphRAG)
+
+- 八阶段流水线: 切分→消解→链接→提取→主题→谓词治理→存储→查询
+- Neo4j MERGE 幂等存储, 去重与关联
+
+### 🎨 可视化与交互
+
+- Cytoscape.js 交互式图谱 + 多布局
+- 过滤/导出/统计视图
+
+### 💬 智能问答与知识卡
+
+- GraphRAG 问答, 实体识别 + 上下文增强
+- 概念卡片、路径分析、标签云
+
+---
+
+## 🏗️ 架构设计
+
+### 系统架构
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        前端层 (Vue 3)                         │
+│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐ │
+│  │ 文档   │  │ 图谱   │  │ 知识   │  │ 问答   │  │ 设置   │ │
+│  │ 管理   │  │ 可视化  │  │ 卡片   │  │ 系统   │  │ 管理   │ │
+│  └────────┘  └────────┘  └────────┘  └────────┘  └────────┘ │
+└────────────────────┬─────────────────────────────────────────┘
+                     │ HTTP/WebSocket
+┌────────────────────▼─────────────────────────────────────────┐
+│                    API 层 (FastAPI)                          │
+│  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐ │
+│  │ Upload │  │ Graph  │  │ Ingest │  │   QA   │  │Settings│ │
+│  │  API   │  │  API   │  │  API   │  │  API   │  │  API   │ │
+│  └────────┘  └────────┘  └────────┘  └────────┘  └────────┘ │
+└────────────────────┬─────────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────────┐
+│                   服务层 (Business Logic)                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │  Parser  │  │Extractor │  │  Linker  │  │QA Service│    │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘    │
+└────────────────────┬─────────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────────┐
+│                   GraphRAG 管道 (8 阶段)                      │
+│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐         │
+│  │ 切分 │→│ 消解 │→│ 链接 │→│ 提取 │→│ ...  │  8 阶段  │
+│  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘         │
+└────────────────────┬─────────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────────┐
+│                    数据层 (Storage)                           │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐ │
+│  │    Neo4j     │     │    Redis     │     │  File System │ │
+│  │  (图数据库)   │     │   (缓存)      │     │  (文档存储)   │ │
+│  └──────────────┘     └──────────────┘     └──────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## 🤝 贡献者
+
+俞烨 · 张鸿榜 · 张璟文 · 王劲毅 · 李嘉艺 · 黄绍华 · 张天硕 · 刘方博 · 陈欣
+
+---
 
 ## 许可证
 
-MIT License
+本项目采用 [MIT License](LICENSE) 开源协议。

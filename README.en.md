@@ -1,218 +1,181 @@
-# POW_SE - Software Engineering Knowledge Graph Platform
+<div align="center">
 
-A multimodal knowledge graph incremental construction platform for the "Software Engineering" course. It utilizes Neo4j to build a knowledge graph of course knowledge points, supporting graph visualization, knowledge querying, and intelligent Q&A.
+# 🎓 POW_SE
 
-## Contributors
+### Software Engineering Knowledge Graph Platform
 
-1. Ye Yu
-2. Hongbang Zhang
-3. Jingwen Zhang
-4. Jingyi Wang
-5. Jiayi Li
-6. Shaohua Huang
-7. Tianshuo Zhang
-8. Fangbo Liu
-9. Xin Chen
+Multi-modal Knowledge Graph incremental construction platform for the Software Engineering course
 
-## Technology Stack
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Vue 3](https://img.shields.io/badge/vue-3.x-green.svg)](https://vuejs.org/)
+[![Neo4j](https://img.shields.io/badge/neo4j-5.x-008CC1.svg)](https://neo4j.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg)](https://fastapi.tiangolo.com/)
 
-### Frontend Stack
-- **Framework**: Vue 3 + TypeScript + Vite
-- **UI Library**: Naive UI
-- **Visualization**: Cytoscape.js + ECharts
-- **State Management**: Pinia
-- **Routing**: Vue Router 4
-- **Internationalization**: vue-i18n
+</div>
 
-### Backend Stack
-- **Framework**: FastAPI + Python
-- **Graph Database**: Neo4j 5.x
-- **Cache**: Redis
-- **AI Integration**: OpenAI API + Custom GraphRAG Algorithm
-- **Task Queue**: RQ (Redis Queue)
+---
+
+## Tech Stack
+
+### Frontend
+
+- Vue 3 + TypeScript + Vite
+- Naive UI / ECharts / Cytoscape.js
+- Pinia (state), Vue Router, vue-i18n
+
+### Backend
+
+- FastAPI on Python 3.11
+- Neo4j 5.x, Redis 6.x, RQ queue
+- AI providers: OpenAI / Anthropic, GraphRAG pipeline
 
 ### Infrastructure
-- **Containerization**: Docker + Docker Compose
-- **Database**: Neo4j + Redis
-- **Deployment**: Supports local development and containerized deployment
+
+- Docker / Docker Compose
+- Nginx reverse proxy
 
 ## Project Structure
-```lua
-POW_SE/
-├── app/vue/                    # Vue 3 Frontend Project
-│   ├── src/
-│   │   ├── views/              # Page Components
-│   │   │   ├── Dashboard.vue   # Dashboard
-│   │   │   ├── Upload.vue      # Document Upload
-│   │   │   ├── Graph.vue       # Graph Visualization
-│   │   │   ├── Query.vue       # Knowledge Query
-│   │   │   └── Status.vue      # Processing Status
-│   │   ├── components/         # Shared Components
-│   │   ├── api/                # API Services
-│   │   ├── stores/             # State Management
-│   │   └── i18n/               # Internationalization
-│   ├── package.json
-│   └── vite.config.ts
-├── server/                     # FastAPI Backend Project
-│   ├── main.py                 # Application Entry Point
-│   ├── routes/                 # API Routes
-│   │   ├── upload.py           # Document Upload
-│   │   ├── ingest.py           # Knowledge Extraction
-│   │   ├── graph.py            # Graph Query
-│   │   └── knowledge_card.py   # Knowledge Cards
-│   ├── services/               # Business Services
-│   │   ├── parser.py           # Document Parsing
-│   │   ├── extractor.py        # Knowledge Extraction
-│   │   ├── graph_service.py    # Graph Services
-│   │   └── linker.py           # Entity Linking
-│   ├── graphrag/               # GraphRAG Module
-│   │   ├── stages/             # 8 Construction Stages
-│   │   ├── models/             # Data Models
-│   │   ├── config/             # Configuration Files
-│   │   └── utils/              # Utility Functions
-│   ├── infra/                  # Infrastructure
-│   │   ├── neo4j_client.py     # Neo4j Client
-│   │   └── ai_providers.py     # AI Service Providers
-│   ├── models/                 # Data Models
-│   └── tests/                  # Test Code
-├── docker-compose.yml          # Docker Compose Configuration
-├── uploads/                    # Upload Directory
-└── data/                       # Data Files
+
+```text
+POW/
+├── DOCUMENTATION_INDEX.md      # Documentation index
+├── app/vue/                    # Frontend app
+│   ├── src/                    # Views, components, stores, api
+│   └── DEVELOPMENT_GUIDE.md    # Frontend guide
+├── server/                     # Backend service
+│   ├── main.py                 # FastAPI entry
+│   ├── infra/                  # Infra (Neo4j/AI/storage/queue)
+│   │   └── README.md
+│   ├── models/                 # Data models
+│   │   └── README.md
+│   ├── services/               # Business services
+│   ├── routes/                 # API routes
+│   ├── graphrag/               # GraphRAG 8-stage pipeline
+│   └── tests/                  # Tests and guides
+└── docker-compose.yml
 ```
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.8+
-- Node.js 14+
-- Neo4j 5.x
-- Redis 6.x
+| Component | Version |
+|-----------|---------|
+| Python | 3.11 (>=3.8 works) |
+| Node.js | 18+ |
+| Neo4j | 5.x |
+| Redis | 6.x |
+| Docker (optional) | 20.10+ |
 
-### Install Dependencies
-
-**Backend Dependencies:**
-```bash
-cd server
-pip install -r requirements.txt
-```
-
-**Frontend Dependencies:**
-```bash
-cd app/vue
-npm install
-```
-
-### Start Services
-
-**Start Backend:**
-```bash
-cd server
-python main.py
-# Or use PowerShell script
-.\start-api.ps1
-```
-
-**Start Frontend:**
-```bash
-cd app/vue
-npm run dev
-# Or use PowerShell script
-.\start-frontend.ps1
-```
-
-### Access the Application
-
-- Frontend Application: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
-
-## Features
-
-- 📊 **Knowledge Graph Visualization**: Interactive graph display using Cytoscape.js
-- 🔍 **Intelligent Search**: Supports keyword search and semantic queries
-- 📚 **Multimodal Resources**: Links to learning resources like documents, videos, and code
-- 🤖 **AI Knowledge Extraction**: Knowledge entity recognition based on GraphRAG algorithm
-- 🔄 **Incremental Construction**: Supports continuous updating and expansion of the knowledge graph
-- 🎯 **Smart Q&A**: Intelligent Q&A system based on knowledge graph
-
-## Core Modules
-
-### GraphRAG Knowledge Graph Construction
-- **Stage 0**: Semantic Chunking - Intelligent document segmentation
-- **Stage 1**: Coreference Resolution - Entity reference resolution
-- **Stage 2**: Entity Linking - Concept identification and linking
-- **Stage 3**: Claim Extraction - Knowledge triplet extraction
-- **Stage 4**: Theme Building - Topic clustering and summarization
-- **Stage 5**: Predicate Governance - Relationship normalization
-- **Stage 6**: Idempotent Storage - Data persistence
-- **Stage 7**: GraphRAG Retrieval - Intelligent retrieval system
-
-### Knowledge Card Management
-- Concept node management
-- Relationship connection management
-- Evidence backtracking support
-- Incremental update mechanism
-
-## Development Guide
-
-### Backend Development
-
-The backend uses the FastAPI framework, following RESTful API design principles:
-
-```python
-# Example API endpoint
-@app.get("/api/graph/nodes")
-async def get_graph_nodes(limit: int = 100):
-    """Retrieve graph node data"""
-    return neo4j_client.get_nodes(limit=limit)
-```
-
-### Frontend Development
-
-The frontend uses Vue 3 Composition API and component-based development:
-
-```vue
-<template>
-  <GraphVisualization :graph-data="graphData" />
-</template>
-
-<script setup>
-import { ref } from 'vue'
-const graphData = ref(null)
-</script>
-```
-
-## Deployment
-
-Use Docker Compose for containerized deployment:
+### Using Docker Compose (recommended)
 
 ```bash
+# Clone
+git clone <repository-url>
+cd POW
+
+# Start frontend + backend + Neo4j + Redis
 docker-compose up -d
 ```
 
-Services include:
-- **Frontend**: Vue application (port 8788)
-- **Backend**: FastAPI application (port 8000)
-- **Database**: Neo4j graph database
-- **Cache**: Redis caching service
+### Local development
+
+```bash
+# Backend
+cd server
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+
+# Frontend
+cd app/vue
+npm install
+npm run dev -- --port 3000
+```
+
+### Access
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| Frontend | <http://localhost:3000> | Vue 3 UI |
+| Backend API | <http://localhost:8000> | FastAPI service |
+| API Docs | <http://localhost:8000/docs> | Swagger UI |
+| Neo4j Console | <http://localhost:7474> | Graph DB console |
+
+## Features
+
+### Document management
+
+- Parse PDF / DOCX / TXT / Markdown
+- Incremental processing, progress tracking, history snapshots
+
+### Knowledge graph (GraphRAG)
+
+- 8-stage pipeline: chunk → coref → link → extract → theme → predicate → store → query
+- Idempotent Neo4j MERGE storage with deduplication
+
+### Visualization
+
+- Cytoscape.js interactive graph, multiple layouts
+- Filtering, export, statistics
+
+### QA & knowledge cards
+
+- GraphRAG Q&A with entity grounding and context augmentation
+- Concept cards, path analysis, tag clouds
+
+## Architecture
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                        Frontend (Vue 3)                      │
+└────────────────────┬─────────────────────────────────────────┘
+                     │ HTTP/WebSocket
+┌────────────────────▼─────────────────────────────────────────┐
+│                        API (FastAPI)                         │
+└────────────────────┬─────────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────────┐
+│                     Services (Logic)                         │
+└────────────────────┬─────────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────────┐
+│                    GraphRAG 8 Stages                         │
+└────────────────────┬─────────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────────┐
+│                    Storage (Neo4j/Redis)                     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## Documentation
+
+| Doc | Description |
+|-----|-------------|
+| `DOCUMENTATION_INDEX.md` | Documentation index & learning path |
+| `server/infra/README.md` | Infra: AI providers, Neo4j, storage, queue |
+| `server/models/README.md` | Data models and validation |
+| `app/vue/DEVELOPMENT_GUIDE.md` | Frontend development guide |
+| `server/graphrag/README.md` | GraphRAG pipeline |
+| `server/routes/README.md` | API design and examples |
+| `server/services/README.md` | Business services |
+| `server/tests/TEST_GUIDE.md` | Testing guide and markers |
 
 ## Testing
 
-The project includes a complete testing framework:
-
 ```bash
-# Run unit tests
 cd server
-pytest tests/
-
-# Run GraphRAG module tests
-pytest tests/graphrag/
+pytest                     # default fast set
+pytest -m unit             # unit only
+pytest -m integration      # requires Neo4j/Redis
+pytest -m api              # FastAPI routes
+pytest --cov=. --cov-report=html
 ```
 
-## Contributing
+## Contributors
 
-Issues and Pull Requests are welcome for improving the project!
+Ye Yu · Hongbang Zhang · Jingwen Zhang · Jingyi Wang · Jiayi Li · Shaohua Huang · Tianshuo Zhang · Fangbo Liu · Xin Chen
 
 ## License
 

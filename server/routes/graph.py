@@ -67,6 +67,8 @@ async def visualize_graph(
             if "n" in record and record["n"]:
                 node = record["n"]
                 node_props = dict(node) if isinstance(node, dict) else node
+                # Convert Neo4j types in properties
+                node_props = neo4j_client._convert_neo4j_types(node_props)
                 labels = list(node.labels) if hasattr(node, "labels") else []
                 
                 # Create unique node ID
@@ -90,6 +92,8 @@ async def visualize_graph(
             if "m" in record and record["m"]:
                 node = record["m"]
                 node_props = dict(node) if isinstance(node, dict) else node
+                # Convert Neo4j types in properties
+                node_props = neo4j_client._convert_neo4j_types(node_props)
                 labels = list(node.labels) if hasattr(node, "labels") else []
                 
                 node_id = node_props.get("id") or node_props.get("name")
@@ -132,6 +136,8 @@ async def visualize_graph(
                     # Get relationship type and properties
                     rel_type = rel.type if hasattr(rel, "type") else "RELATES_TO"
                     rel_props = dict(rel) if isinstance(rel, dict) else rel
+                    # Convert Neo4j types in relationship properties
+                    rel_props = neo4j_client._convert_neo4j_types(rel_props)
                     
                     edges.append({
                         "id": f"{source_id}_{rel_type}_{target_id}",
@@ -302,6 +308,7 @@ async def get_nodes(
     nodes = []
     for record in results:
         node = record["n"]
+        # Extract properties - execute_query should have already converted types
         props = dict(node) if hasattr(node, "__getitem__") else {}
         labels = list(node.labels) if hasattr(node, "labels") else []
         
@@ -309,10 +316,13 @@ async def get_nodes(
         if not node_id:
             node_id = getattr(node, "element_id", None) or str(getattr(node, "id", hash(str(node))))
         
+        # Double-convert to ensure all nested types are handled
+        clean_props = neo4j_client._convert_neo4j_types(props)
+        
         nodes.append(Node(
             id=str(node_id),
             labels=labels,
-            properties=neo4j_client._convert_neo4j_types(props)
+            properties=clean_props
         ))
     
     return nodes
@@ -353,11 +363,14 @@ async def get_edges(
             rel_type_str = rel.type if hasattr(rel, "type") else str(rel)
             rel_props = dict(rel) if hasattr(rel, "__getitem__") else {}
             
+            # Double-convert to ensure all nested types are handled
+            clean_rel_props = neo4j_client._convert_neo4j_types(rel_props)
+            
             edges.append(Edge(
                 source=str(source_id),
                 target=str(target_id),
                 type=rel_type_str,
-                properties=neo4j_client._convert_neo4j_types(rel_props)
+                properties=clean_rel_props
             ))
     
     return edges

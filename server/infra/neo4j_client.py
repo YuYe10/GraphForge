@@ -239,8 +239,8 @@ class Neo4jClient:
         """
         # Import neo4j types dynamically to avoid hard dependencies
         try:
-            from neo4j.time import DateTime, Date, Time, Duration
-            from neo4j import Node, Relationship
+                from neo4j.time import DateTime, Date, Time, Duration
+                from neo4j.graph import Node, Relationship
         except ImportError:
             # If neo4j types not available, return as-is
             return obj
@@ -257,13 +257,16 @@ class Neo4jClient:
         if isinstance(obj, Relationship):
             return Neo4jClient._convert_neo4j_types(dict(obj))
         
-        # Handle Neo4j datetime types
+        # Handle Neo4j datetime types - convert to ISO format strings for JSON serialization
         if isinstance(obj, DateTime):
-            return obj.to_native()
+            native = obj.to_native()
+            return native.isoformat() if hasattr(native, 'isoformat') else str(native)
         if isinstance(obj, Date):
-            return obj.to_native()
+            native = obj.to_native()
+            return native.isoformat() if hasattr(native, 'isoformat') else str(native)
         if isinstance(obj, Time):
-            return obj.to_native()
+            native = obj.to_native()
+            return native.isoformat() if hasattr(native, 'isoformat') else str(native)
         if isinstance(obj, Duration):
             return str(obj)  # Convert duration to string representation
         

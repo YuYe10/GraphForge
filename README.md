@@ -54,7 +54,7 @@ POW/
 │   ├── graphrag/               # GraphRAG 八阶段流水线
 │   └── tests/                  # 测试套件与指南
 └── docker-compose.yml
-```text
+```
 
 ## 快速开始
 

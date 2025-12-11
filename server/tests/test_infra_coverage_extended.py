@@ -103,7 +103,7 @@ class TestNeo4jClientExtended:
         except Exception:
             pytest.skip("Neo4j client initialization failed")
 
-    @patch('infra.neo4j_client.neo4j.GraphDatabase.driver')
+    @patch('infra.neo4j_client.GraphDatabase.driver')
     def test_client_methods(self, mock_driver):
         """测试客户端方法"""
         mock_driver.return_value = Mock()

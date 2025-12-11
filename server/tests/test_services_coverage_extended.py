@@ -91,30 +91,35 @@ class TestLinkerServiceExtended:
 class TestQueryServiceExtended:
     """查询服务扩展覆盖"""
 
-    @patch('services.query_service.neo4j_client')
-    def test_query_service_initialization(self, mock_neo4j):
+    def test_query_service_initialization(self):
         """测试查询服务初始化"""
         try:
             from services.query_service import QueryService
-            mock_neo4j._initialized = True
-            service = QueryService()
-            assert service is not None
-        except Exception:
+        except ImportError:
             pytest.skip("QueryService not available")
 
-    @patch('services.query_service.neo4j_client')
-    def test_query_empty_graph(self, mock_neo4j):
+        # 初始化状态模拟，避免真实连接
+        from services import query_service
+        if hasattr(query_service, "neo4j_client"):
+            query_service.neo4j_client._initialized = True
+        service = QueryService()
+        assert service is not None
+
+    def test_query_empty_graph(self):
         """测试查询空图"""
-        mock_neo4j._initialized = True
-        mock_neo4j.execute_query.return_value = []
-        
         try:
             from services.query_service import QueryService
-            service = QueryService()
-            result = service.query("test")
-            assert isinstance(result, (list, dict, type(None)))
-        except Exception:
-            pass
+        except ImportError:
+            pytest.skip("QueryService not available")
+
+        from services import query_service
+        if hasattr(query_service, "neo4j_client"):
+            query_service.neo4j_client._initialized = True
+            query_service.neo4j_client.execute_query.return_value = []
+
+        service = QueryService()
+        result = service.query("test")
+        assert isinstance(result, (list, dict, type(None)))
 
 
 if __name__ == "__main__":

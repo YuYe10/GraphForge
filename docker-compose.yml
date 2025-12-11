@@ -1,6 +1,6 @@
 
 services:
-  powneo4j:
+  newneo4j:
     image: neo4j:5.26-community
     container_name: pow-neo4j
     environment:
@@ -23,7 +23,7 @@ services:
       timeout: 5s
       retries: 5
 
-  powredis:
+  newredis:
     image: redis:7.4.7-alpine
     container_name: pow-redis
     ports:

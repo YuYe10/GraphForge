@@ -14,7 +14,7 @@ LunarInsight GraphRAG Module
 
 __version__ = "2.0.0-alpha"
 
-from graphrag.stages import (
+from graphrag.prompts.stages import (
     SemanticChunker,
     CoreferenceResolver,
     EntityLinker,

@@ -18,7 +18,7 @@ sys.path.insert(0, str(project_root))
 import pytest
 from unittest.mock import Mock, patch
 
-from graphrag.stages.stage4_theme_builder import ThemeBuilder
+from graphrag.prompts.stages.stage4_theme_builder import ThemeBuilder
 from graphrag.models.theme import Theme
 
 # 配置日志
@@ -254,7 +254,7 @@ def _install_test_mocks(monkeypatch, custom_theme_response=None):
                 "base_url": ""
             }
     
-    from graphrag.stages import stage4_theme_builder as s4
+    from graphrag.prompts.stages import stage4_theme_builder as s4
     monkeypatch.setattr(s4, "config_service", _ConfigService, raising=True)
     
     # Mock AIProviderFactory 返回自定义 Mock 客户端
@@ -264,7 +264,7 @@ def _install_test_mocks(monkeypatch, custom_theme_response=None):
         return custom_client
     
     monkeypatch.setattr(
-        "graphrag.stages.stage4_theme_builder.AIProviderFactory.create_client",
+        "graphrag.prompts.stages.stage4_theme_builder.AIProviderFactory.create_client",
         _create_mock_client,
         raising=True
     )
@@ -274,33 +274,38 @@ def _install_test_mocks(monkeypatch, custom_theme_response=None):
     monkeypatch.setattr(s4, "neo4j_client", mock_neo4j, raising=True)
     
     # Mock get_config
+    class _MockThresholds:
+        def __init__(self, theme_dict):
+            self.theme_building = type('obj', (object,), theme_dict)()
+            
     class _MockConfig:
         def __init__(self):
-            self.thresholds = {
-                "theme_building": {
-                    "min_community_size": 3,
-                    "multi_scale": {
-                        "enabled": False
-                    },
-                    "louvain": {
-                        "resolution": 1.0
-                    },
-                    "relation_weights": {
-                        "cooccur_weight": 0.4,
-                        "semantic_weight": 0.4,
-                        "claim_weight": 0.2,
-                        "min_weight_threshold": 0.1,
-                        "max_edges_per_node": 10
-                    },
-                    "summary": {
-                        "max_concepts_per_summary": 10,
-                        "max_claims_per_summary": 5
-                    }
+            theme_config = {
+                "min_community_size": 3,
+                "multi_scale": {
+                    "enabled": False
                 },
-                "performance": {
-                    "batch_write_size": 100
+                "louvain": {
+                    "resolution": 1.0
+                },
+                "relation_weights": {
+                    "cooccur_weight": 0.4,
+                    "semantic_weight": 0.4,
+                    "claim_weight": 0.2,
+                    "min_weight_threshold": 0.1,
+                    "max_edges_per_node": 10
+                },
+                "summary": {
+                    "max_concepts_per_summary": 10,
+                    "max_claims_per_summary": 5
                 }
             }
+            self.thresholds = type('obj', (object,), {
+                'theme_building': type('obj', (object,), theme_config)()
+            })()
+            self.performance = type('obj', (object,), {
+                "batch_write_size": 100
+            })()
     
     def _get_config():
         return _MockConfig()
@@ -458,41 +463,42 @@ def test_theme_building_multi_scale(monkeypatch):
     _install_test_mocks(monkeypatch)
     
     # 修改配置以启用多尺度检测
-    from graphrag.stages import stage4_theme_builder as s4
+    from graphrag.prompts.stages import stage4_theme_builder as s4
     
     class _MockConfigMultiScale:
         def __init__(self):
-            self.thresholds = {
-                "theme_building": {
-                    "min_community_size": 3,
-                    "multi_scale": {
-                        "enabled": True,
-                        "level1_resolution": 0.5,
-                        "level1_min_themes": 2,
-                        "level1_max_themes": 5,
-                        "level2_resolution": 1.5,
-                        "level2_min_themes": 2,
-                        "level2_max_themes": 8
-                    },
-                    "louvain": {
-                        "resolution": 1.0
-                    },
-                    "relation_weights": {
-                        "cooccur_weight": 0.4,
-                        "semantic_weight": 0.4,
-                        "claim_weight": 0.2,
-                        "min_weight_threshold": 0.1,
-                        "max_edges_per_node": 10
-                    },
-                    "summary": {
-                        "max_concepts_per_summary": 10,
-                        "max_claims_per_summary": 5
-                    }
-                },
-                "performance": {
-                    "batch_write_size": 100
-                }
+            theme_config = {
+                "min_community_size": 3,
+                "multi_scale": type('obj', (object,), {
+                    "enabled": True,
+                    "level1_resolution": 0.5,
+                    "level1_min_themes": 2,
+                    "level1_max_themes": 5,
+                    "level2_resolution": 1.5,
+                    "level2_min_themes": 2,
+                    "level2_max_themes": 8
+                })(),
+                "louvain": type('obj', (object,), {
+                    "resolution": 1.0
+                })(),
+                "relation_weights": type('obj', (object,), {
+                    "cooccur_weight": 0.4,
+                    "semantic_weight": 0.4,
+                    "claim_weight": 0.2,
+                    "min_weight_threshold": 0.1,
+                    "max_edges_per_node": 10
+                })(),
+                "summary": type('obj', (object,), {
+                    "max_concepts_per_summary": 10,
+                    "max_claims_per_summary": 5
+                })()
             }
+            self.thresholds = type('obj', (object,), {
+                'theme_building': type('obj', (object,), theme_config)()
+            })()
+            self.performance = type('obj', (object,), {
+                "batch_write_size": 100
+            })()
     
     def _get_config():
         return _MockConfigMultiScale()

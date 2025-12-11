@@ -134,6 +134,23 @@ def sample_document_metadata():
     }
 
 
+@pytest.fixture(scope="function")
+def mock_neo4j_client(monkeypatch):
+    """Mock Neo4j客户端用于API测试"""
+    from unittest.mock import Mock, MagicMock
+    
+    mock_client = Mock()
+    mock_client._initialized = True
+    mock_client.execute_query = Mock(return_value=[{"total": 0}])
+    mock_client.create_document = Mock(return_value={"id": "doc_123", "filename": "test.txt"})
+    
+    # Patch neo4j_client实例
+    import infra.neo4j_client
+    monkeypatch.setattr(infra.neo4j_client, "neo4j_client", mock_client)
+    
+    return mock_client
+
+
 # 测试辅助函数
 def assert_valid_uuid(value: str) -> bool:
     """验证是否为有效的 UUID"""

@@ -15,7 +15,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from graphrag.stages.stage1_coref import CoreferenceResolver, CorefResult
+from graphrag.prompts.stages.stage1_coref import CoreferenceResolver, CorefResult
 from graphrag.models.chunk import ChunkMetadata
 
 # 配置日志以显示详细步骤
@@ -250,7 +250,7 @@ def test_coref_no_mentions():
     chunk = ChunkMetadata(
         id="test_doc:5",
         doc_id="test_doc",
-        text="这是一个没有代词和指代的测试文本。文本内容直接描述了主题。没有需要消解的指代关系。",
+        text="这是一个没有代词和指代的测试文本。文本内容直接描述了知识图谱的基本概念和应用场景。本文档主要介绍相关技术背景。没有需要消解的指代关系。",
         chunk_index=5,
         sentence_ids=["test_doc:s0", "test_doc:s1", "test_doc:s2"],
         sentence_count=3,

@@ -355,7 +355,6 @@ const handleViewGraph = (doc: DocumentListResponse['documents'][0]) => {
 }
 
 const handleDeleteDocument = (_doc: DocumentListResponse['documents'][0]) => {
-  message.warning('删除功能即将上线')
   // TODO: Implement delete functionality
 }
 

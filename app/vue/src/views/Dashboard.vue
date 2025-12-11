@@ -151,7 +151,7 @@
           </div>
 
           <div class="action-card" @click="$router.push('/documents')">
-            <div class="action-icon" style="background: linear-gradient(135deg, #3b82f6, #1e40af);">
+            <div class="action-icon" style="background: linear-gradient(135deg, #c9a668, #9a7509);">
               <n-icon size="28"><document-text-outline /></n-icon>
             </div>
             <div class="action-content">

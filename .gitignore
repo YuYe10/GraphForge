@@ -44,7 +44,6 @@ data/
 uploads/
 *.db
 *.sqlite
-docs/
 scripts/
 
 # Logs
@@ -57,7 +56,3 @@ Thumbs.db
 
 # Docker
 .dockerignore
-
-LunarInsight_技术蓝图_v4.md
-QUICKSTART.md
-LunarInsight_技术蓝图_v3.md

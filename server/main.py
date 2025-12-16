@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="LunarInsight API",
+    title="POW_SE API",
     description="Personal Knowledge Graph System",
     version="0.1.0",
     lifespan=lifespan

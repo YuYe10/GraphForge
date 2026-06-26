@@ -42,7 +42,7 @@ GraphForge/
 │       ├── TEST_FIXES_SUMMARY.md # 修复记录与经验总结
 │       └── fixtures/           #   测试数据
 │
-└── app/vue/                     # 前端应用 (Vue 3 + TypeScript + Vite)
+└── app/                     # 前端应用 (Vue 3 + TypeScript + Vite)
     ├── DEVELOPMENT_GUIDE.md    # 前端开发指南
     └── src/
         ├── README.md           # 前端架构说明
@@ -66,7 +66,7 @@ GraphForge/
 | 项目 README (中文) | [README.md](README.md) | 项目简介、架构设计、安装运行指南 |
 | 项目 README (英文) | [README.en.md](README.en.md) | English version of the README |
 | Docker 编排 | [docker-compose.yml](docker-compose.yml) | 一键启动 Neo4j + Redis + 应用 |
-| 前端开发指南 | [app/vue/DEVELOPMENT_GUIDE.md](app/vue/DEVELOPMENT_GUIDE.md) | 前端环境搭建与开发规范 |
+| 前端开发指南 | [app/DEVELOPMENT_GUIDE.md](app/DEVELOPMENT_GUIDE.md) | 前端环境搭建与开发规范 |
 
 ---
 
@@ -228,8 +228,8 @@ DocumentParser → AISegmenter → TripletExtractor → EntityLinker → GraphSe
 
 | 文档 | 路径 | 内容 |
 |------|------|------|
-| 前端架构文档 | [app/vue/src/README.md](app/vue/src/README.md) | Vue 3 项目架构说明与目录结构 |
-| 开发指南 | [app/vue/DEVELOPMENT_GUIDE.md](app/vue/DEVELOPMENT_GUIDE.md) | 环境搭建、开发规范、构建部署 |
+| 前端架构文档 | [app/src/README.md](app/src/README.md) | Vue 3 项目架构说明与目录结构 |
+| 开发指南 | [app/DEVELOPMENT_GUIDE.md](app/DEVELOPMENT_GUIDE.md) | 环境搭建、开发规范、构建部署 |
 
 **核心页面** (8 个):
 
@@ -266,7 +266,7 @@ DocumentParser → AISegmenter → TripletExtractor → EntityLinker → GraphSe
 
 ### 文档上传和处理
 
-1. 前端上传界面 — [app/vue/src/views/Upload.vue](app/vue/src/views/Upload.vue)
+1. 前端上传界面 — [app/src/views/Upload.vue](app/src/views/Upload.vue)
 2. 上传 API — [server/routes/upload.py](server/routes/upload.py)
 3. 文档解析服务 — [server/services/parser.py](server/services/parser.py)
 4. AI 智能分段 — [server/services/ai_segmenter.py](server/services/ai_segmenter.py)
@@ -289,17 +289,17 @@ DocumentParser → AISegmenter → TripletExtractor → EntityLinker → GraphSe
 
 ### 图谱可视化
 
-1. 前端可视化页面 — [app/vue/src/views/Graph.vue](app/vue/src/views/Graph.vue)
+1. 前端可视化页面 — [app/src/views/Graph.vue](app/src/views/Graph.vue)
 2. 图谱 API 路由 — [server/routes/graph.py](server/routes/graph.py)
 3. Neo4j 查询客户端 — [server/infra/neo4j_client.py](server/infra/neo4j_client.py)
 4. API 文档 — [server/routes/README.md](server/routes/README.md) (Graph 部分)
-5. 前端开发指南 — [app/vue/DEVELOPMENT_GUIDE.md](app/vue/DEVELOPMENT_GUIDE.md) (图谱可视化章节)
+5. 前端开发指南 — [app/DEVELOPMENT_GUIDE.md](app/DEVELOPMENT_GUIDE.md) (图谱可视化章节)
 
 ---
 
 ### 智能问答
 
-1. 问答界面 — [app/vue/src/views/Query.vue](app/vue/src/views/Query.vue)
+1. 问答界面 — [app/src/views/Query.vue](app/src/views/Query.vue)
 2. QA 服务 — [server/services/qa_service.py](server/services/qa_service.py)
 3. QA API 路由 — [server/routes/qa.py](server/routes/qa.py)
 4. GraphRAG 查询 — [server/graphrag/api/query.py](server/graphrag/api/query.py)
@@ -312,7 +312,7 @@ DocumentParser → AISegmenter → TripletExtractor → EntityLinker → GraphSe
 1. AI 提供商实现 — [server/infra/ai_providers.py](server/infra/ai_providers.py)
 2. Infra 文档 — [server/infra/README.md](server/infra/README.md) (AI Providers 章节)
 3. 配置管理 — [server/infra/config.py](server/infra/config.py)
-4. 前端设置页 — [app/vue/src/views/Settings.vue](app/vue/src/views/Settings.vue)
+4. 前端设置页 — [app/src/views/Settings.vue](app/src/views/Settings.vue)
 
 ---
 
@@ -322,7 +322,7 @@ DocumentParser → AISegmenter → TripletExtractor → EntityLinker → GraphSe
 
 1. 阅读项目 README — [README.md](README.md)
 2. 按 README 步骤启动项目 (Docker 或本地)
-3. 阅读前端架构 — [app/vue/src/README.md](app/vue/src/README.md)
+3. 阅读前端架构 — [app/src/README.md](app/src/README.md)
 4. 阅读数据模型 — [server/models/README.md](server/models/README.md)
 5. 运行快速验证 — `cd server && python tests/verify_quick.py`
 
@@ -350,8 +350,8 @@ DocumentParser → AISegmenter → TripletExtractor → EntityLinker → GraphSe
 ### 前端开发 (第 8–10 天)
 
 1. **Vue 基础**:
-   - 开发指南 — [app/vue/DEVELOPMENT_GUIDE.md](app/vue/DEVELOPMENT_GUIDE.md)
-   - 前端架构 — [app/vue/src/README.md](app/vue/src/README.md)
+   - 开发指南 — [app/DEVELOPMENT_GUIDE.md](app/DEVELOPMENT_GUIDE.md)
+   - 前端架构 — [app/src/README.md](app/src/README.md)
    - 学习 Composition API + TypeScript 开发规范
 
 2. **核心功能**:

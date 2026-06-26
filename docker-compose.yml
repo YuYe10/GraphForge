@@ -1,13 +1,12 @@
 
 services:
-  newneo4j:
+  gfneo4j:
     image: neo4j:5.26-community
-    container_name: pow-neo4j
+    container_name: gf-neo4j
     environment:
       - NEO4J_AUTH=neo4j/neo4j1234
       - NEO4J_PLUGINS=["apoc", "graph-data-science"]
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
-      - NEO4J_dbms_security_procedures_allowlist=apoc.*,gds.*
     ports:
       - "7474:7474"  # HTTP
       - "7687:7687"  # Bolt
@@ -23,9 +22,9 @@ services:
       timeout: 5s
       retries: 5
 
-  newredis:
+  gfredis:
     image: redis:7.4.7-alpine
-    container_name: pow-redis
+    container_name: gf-redis
     ports:
       - "6379:6379"
     volumes:

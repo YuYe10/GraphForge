@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎓 POW_SE
+# 🎓 GraphForge — Forging knowledge into connected graphs
 
 ### 软件工程知识图谱平台
 
@@ -38,7 +38,7 @@
 ## 项目结构
 
 ```text
-POW/
+GraphForge/
 ├── DOCUMENTATION_INDEX.md      # 文档总览/导航
 ├── app/vue/                    # 前端应用
 │   ├── src/                    # 业务页面、组件、stores、api
@@ -73,7 +73,7 @@ POW/
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd POW
+cd GraphForge
 
 # 启动前后端 + Neo4j + Redis
 docker-compose up -d

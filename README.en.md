@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎓 POW_SE
+# 🎓 GraphForge — Forging knowledge into connected graphs
 
 ### Software Engineering Knowledge Graph Platform
 
@@ -38,7 +38,7 @@ Multi-modal Knowledge Graph incremental construction platform for the Software E
 ## Project Structure
 
 ```text
-POW/
+GraphForge/
 ├── DOCUMENTATION_INDEX.md      # Documentation index
 ├── app/vue/                    # Frontend app
 │   ├── src/                    # Views, components, stores, api
@@ -73,7 +73,7 @@ POW/
 ```bash
 # Clone
 git clone <repository-url>
-cd POW
+cd GraphForge
 
 # Start frontend + backend + Neo4j + Redis
 docker-compose up -d

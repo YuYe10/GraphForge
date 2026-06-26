@@ -3,7 +3,7 @@
     <!-- Header Section -->
     <div class="page-header">
       <div class="header-content">
-        <h1 class="page-title">POW_SE</h1>
+        <h1 class="page-title">GraphForge</h1>
         <p class="page-subtitle">仪表盘 · Dashboard</p>
       </div>
       <div class="header-actions">

@@ -1,8 +1,8 @@
 {
   "app": {
-    "title": "POW_SE",
+    "title": "GraphForge",
     "subtitle": "知识图谱构建与管理平台",
-    "page_title": "POW_SE"
+    "page_title": "GraphForge"
   },
   "navigation": {
     "title": "导航",
@@ -15,7 +15,7 @@
     "status": "处理状态"
   },
   "dashboard": {
-    "title": "POW_SE",
+    "title": "GraphForge",
     "subtitle": "仪表盘",
     "key_metrics": "核心指标",
     "refresh_data": "刷新数据",

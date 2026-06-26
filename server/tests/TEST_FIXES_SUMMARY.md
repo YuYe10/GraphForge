@@ -379,7 +379,7 @@ jobs:
 
 ```bash
 # 1. 进入项目目录
-cd /home/yuye/POW/server
+cd /home/yuye/Resporitory/POW_AI/server
 
 # 2. 激活虚拟环境
 source ../.venv/bin/activate

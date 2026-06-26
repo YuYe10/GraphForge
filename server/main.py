@@ -26,8 +26,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="POW_SE API",
-    description="Personal Knowledge Graph System",
+    title="GraphForge API",
+    description="GraphForge — Knowledge Graph Platform",
     version="0.1.0",
     lifespan=lifespan
 )

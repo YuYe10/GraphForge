@@ -4,7 +4,7 @@
 
 ```bash
 # 1. 进入测试目录
-cd /home/yuye/POW/server/tests
+cd /home/yuye/Resporitory/POW_AI/server/tests
 
 # 2. 运行交互式测试脚本 (推荐)
 ./run_tests.sh
@@ -35,7 +35,7 @@ python test_documents_neo4j.py                # Neo4j 查询测试
 ### 🌐 API 测试 (需要服务器运行)
 
 ```bash
-# 先启动服务器: cd /home/yuye/POW/server && python main.py
+# 先启动服务器: cd /home/yuye/Resporitory/POW_AI/server && python main.py
 
 python test_graph_api.py                      # 图谱可视化 API
 python test_documents_fullstack.py            # 文档管理全栈测试
@@ -45,7 +45,7 @@ python test_documents_final.py                # 文档管理 API 验证
 ### 🧩 pytest 标准测试
 
 ```bash
-cd /home/yuye/POW/server
+cd /home/yuye/Resporitory/POW_AI/server
 
 # 按标记运行
 pytest -m unit -v              # 单元测试
@@ -84,14 +84,14 @@ pytest --cov=. --cov-report=html --cov-report=term
 ### 1. 安装依赖
 
 ```bash
-cd /home/yuye/POW/server
+cd /home/yuye/Resporitory/POW_AI/server
 pip install -r requirements.txt
 pip install pytest pytest-cov pytest-asyncio
 ```
 
 ### 2. 配置环境变量
 
-在 `/home/yuye/POW/server/.env` 中配置:
+在 `/home/yuye/Resporitory/POW_AI/server/.env` 中配置:
 
 ```bash
 NEO4J_URI=bolt://localhost:7687
@@ -105,7 +105,7 @@ OPENAI_API_KEY=your_api_key
 
 ```bash
 # 使用 Docker Compose
-cd /home/yuye/POW
+cd /home/yuye/Resporitory/POW_AI
 docker-compose up -d neo4j redis
 
 # 或手动启动
@@ -158,7 +158,7 @@ docker-compose up -d redis
 
 ```bash
 # 确保在正确的目录
-cd /home/yuye/POW/server
+cd /home/yuye/Resporitory/POW_AI/server
 
 # 安装依赖
 pip install -r requirements.txt
@@ -227,6 +227,6 @@ pytest -n auto  # 自动检测 CPU 核心数
 
 **保持测试绿色! 🧪✅**
 
-Made with ❤️ by POW_SE Team
+Made with ❤️ by GraphForge Team
 
 </div>

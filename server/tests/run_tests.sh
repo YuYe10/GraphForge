@@ -4,11 +4,11 @@
 
 set -e
 
-TESTS_DIR="/home/yuye/POW/server/tests"
+TESTS_DIR="/home/yuye/Resporitory/POW_AI/server/tests"
 cd "$TESTS_DIR"
 
 echo "=================================="
-echo "POW_SE 测试套件快速运行"
+echo "GraphForge 测试套件快速运行"
 echo "=================================="
 echo ""
 

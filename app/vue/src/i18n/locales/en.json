@@ -1,8 +1,8 @@
 {
   "app": {
-    "title": "POW_SE",
+    "title": "GraphForge",
     "subtitle": "Intelligent Knowledge Graph Analysis Platform",
-    "page_title": "POW_SE"
+    "page_title": "GraphForge"
   },
   "navigation": {
     "title": "Navigation",
@@ -15,7 +15,7 @@
     "status": "Processing Status"
   },
   "dashboard": {
-    "title": "POW_SE",
+    "title": "GraphForge",
     "subtitle": "Dashboard",
     "key_metrics": "Key Metrics",
     "refresh_data": "Refresh Data",

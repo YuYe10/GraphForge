@@ -21,16 +21,44 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    networks:
+      - graphforge
 
   gfredis:
     image: redis:7.4.7-alpine
     container_name: gf-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --requirepass ${REDIS_PASSWORD:-graphforge_redis}
+      --loglevel notice
+      --databases 16
+      --tcp-keepalive 300
+      --timeout 300
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - ./data/redis:/data
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-graphforge_redis}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-graphforge_redis}", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - graphforge
+
+networks:
+  graphforge:
+    driver: bridge
+    name: graphforge-net

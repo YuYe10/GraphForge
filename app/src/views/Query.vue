@@ -1,96 +1,81 @@
 <template>
   <div class="query-page">
-    <div class="query-header">
-      <h1 class="query-title">
-        <n-gradient-text type="info">
-          {{ t('query.title') }}
-        </n-gradient-text>
-      </h1>
-      <p class="query-subtitle">使用 Cypher 查询语言探索知识图谱</p>
+    <div class="page-bg"></div>
+
+    <!-- Header -->
+    <div class="query-header glass-card">
+      <h1 class="query-title gradient-text-blue">图谱查询</h1>
+      <p class="query-subtitle">使用 Cypher 查询语言探索知识图谱 · Interactive Knowledge Query</p>
     </div>
 
-    <n-card>
-      <n-tabs v-model:value="activeTab" type="line">
-        <n-tab-pane :name="'cypher'" :tab="t('query.cypher_query')">
+    <n-card class="query-card glass-card" :bordered="false">
+      <n-tabs v-model:value="activeTab" type="line" animated>
+        <!-- Cypher Query Tab -->
+        <n-tab-pane name="cypher" tab="🔍 Cypher 查询">
           <n-space vertical :size="16">
-            <n-input
-              v-model:value="cypherQuery"
-              type="textarea"
-              :rows="8"
-              :placeholder="t('query.cypher_help')"
-            />
-            
-            <n-button type="primary" :loading="executing" @click="executeCypher">
-              <template #icon>
-                <n-icon><play-outline /></n-icon>
-              </template>
-              {{ t('query.execute') }}
+            <div class="cypher-input-wrapper">
+              <div class="cypher-toolbar">
+                <n-space :size="8">
+                  <n-tag v-for="tpl in cypherTemplates" :key="tpl.label" size="small" :bordered="false" type="info" style="cursor:pointer" @click="cypherQuery = tpl.query">
+                    {{ tpl.label }}
+                  </n-tag>
+                </n-space>
+                <n-button text size="small" @click="clearHistory" v-if="queryHistory.length > 0">清空历史</n-button>
+              </div>
+              <n-input
+                v-model:value="cypherQuery"
+                type="textarea"
+                :rows="6"
+                :placeholder="'MATCH (n) RETURN n LIMIT 25'"
+                class="cypher-input"
+              />
+            </div>
+
+            <!-- Query History -->
+            <div v-if="queryHistory.length > 0" class="query-history">
+              <div class="history-title">查询历史</div>
+              <div v-for="(h, i) in queryHistory.slice(0, 5)" :key="i" class="history-item" @click="cypherQuery = h.query; executeCypher()">
+                <n-icon size="14"><time-outline /></n-icon>
+                <span class="history-query">{{ truncate(h.query, 80) }}</span>
+                <n-tag size="tiny" :bordered="false" :type="h.success ? 'success' : 'error'">{{ h.time }}</n-tag>
+              </div>
+            </div>
+
+            <n-button type="primary" :loading="executing" @click="executeCypher" size="large">
+              <template #icon><n-icon><play-outline /></n-icon></template>
+              执行查询
             </n-button>
           </n-space>
         </n-tab-pane>
 
-        <n-tab-pane :name="'nodes'" :tab="t('query.get_nodes')">
-          <n-space :size="16" style="margin-bottom: 16px">
-            <n-input
-              v-model:value="nodeLabel"
-              :placeholder="t('query.label_help')"
-              clearable
-              style="width: 200px"
-            >
-              <template #prefix>
-                {{ t('query.label_optional') }}:
-              </template>
-            </n-input>
-            
-            <n-input-number
-              v-model:value="nodeLimit"
-              :min="1"
-              :max="1000"
-              style="width: 150px"
-            >
-              <template #prefix>
-                {{ t('query.limit') }}:
-              </template>
-            </n-input-number>
-            
+        <!-- Get Nodes Tab -->
+        <n-tab-pane name="nodes" tab="📦 获取节点">
+          <n-space :size="16" style="margin-bottom: 16px" align="end">
+            <n-form-item label="标签 (可选)" style="margin-bottom:0">
+              <n-input v-model:value="nodeLabel" placeholder="筛选标签" clearable style="width: 180px" />
+            </n-form-item>
+            <n-form-item label="数量限制" style="margin-bottom:0">
+              <n-input-number v-model:value="nodeLimit" :min="1" :max="1000" style="width: 140px" />
+            </n-form-item>
             <n-button type="primary" :loading="fetchingNodes" @click="fetchNodes">
-              <template #icon>
-                <n-icon><search-outline /></n-icon>
-              </template>
-              {{ t('query.get_nodes_btn') }}
+              <template #icon><n-icon><search-outline /></n-icon></template>
+              获取节点
             </n-button>
           </n-space>
         </n-tab-pane>
 
-        <n-tab-pane :name="'edges'" :tab="t('query.get_edges')">
-          <n-space :size="16" style="margin-bottom: 16px">
-            <n-input
-              v-model:value="relType"
-              :placeholder="t('query.rel_type_help')"
-              clearable
-              style="width: 200px"
-            >
-              <template #prefix>
-                {{ t('query.rel_type_optional') }}:
-              </template>
-            </n-input>
-            
-            <n-input-number
-              v-model:value="edgeLimit"
-              :min="1"
-              :max="1000"
-              style="width: 150px"
-            >
-              <template #prefix>
-                {{ t('query.limit') }}:
-              </template>
-            </n-input-number>
-            
+        <!-- Get Edges Tab -->
+        <n-tab-pane name="edges" tab="🔗 获取关系">
+          <n-space :size="16" style="margin-bottom: 16px" align="end">
+            <n-form-item label="关系类型 (可选)" style="margin-bottom:0">
+              <n-input v-model:value="relType" placeholder="筛选类型" clearable style="width: 180px" />
+            </n-form-item>
+            <n-form-item label="数量限制" style="margin-bottom:0">
+              <n-input-number v-model:value="edgeLimit" :min="1" :max="1000" style="width: 140px" />
+            </n-form-item>
             <n-button type="primary" :loading="fetchingEdges" @click="fetchEdges">
-              <template #icon>
-                <n-icon><search-outline /></n-icon>
-              </template>
-              {{ t('query.get_edges_btn') }}
+              <template #icon><n-icon><search-outline /></n-icon></template>
+              获取关系
             </n-button>
           </n-space>
         </n-tab-pane>
@@ -98,38 +83,36 @@
 
       <n-divider v-if="queryResult" />
 
-      <div v-if="queryResult" class="query-result">
-        <n-alert type="success" :show-icon="true" style="margin-bottom: 16px">
-          {{ t('query.success') }}
-        </n-alert>
+      <!-- Results -->
+      <transition name="fade-up">
+        <div v-if="queryResult" class="query-result">
+          <n-alert type="success" style="margin-bottom: 16px">
+            <template #icon><n-icon><checkmark-circle-outline /></n-icon></template>
+            查询成功 · {{ queryResult.length }} 条结果
+          </n-alert>
 
-        <n-tabs v-model:value="resultView" type="card">
-          <n-tab-pane :name="'table'" :tab="t('query.view_result')">
-            <n-data-table
-              :columns="resultColumns"
-              :data="queryResult"
-              :pagination="{ pageSize: 10 }"
-              :scroll-x="1200"
-            />
-          </n-tab-pane>
-          
-          <n-tab-pane :name="'json'" :tab="t('query.view_raw_json')">
-            <n-code :code="JSON.stringify(queryResult, null, 2)" language="json" />
-          </n-tab-pane>
-        </n-tabs>
-      </div>
+          <n-tabs v-model:value="resultView" type="card" size="small">
+            <n-tab-pane name="table" tab="📊 表格视图">
+              <n-data-table :columns="resultColumns" :data="queryResult" :pagination="{ pageSize: 15 }" :scroll-x="1200" size="small" />
+            </n-tab-pane>
+            <n-tab-pane name="json" tab="📋 JSON 视图">
+              <n-code :code="JSON.stringify(queryResult, null, 2)" language="json" />
+            </n-tab-pane>
+          </n-tabs>
+        </div>
+      </transition>
     </n-card>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
-import { PlayOutline, SearchOutline } from '@vicons/ionicons5'
+import { PlayOutline, SearchOutline, TimeOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
 import { executeCypherQuery, getNodes, getEdges } from '@/api/services'
 
-const { t } = useI18n()
+const { t: _t } = useI18n()
 const message = useMessage()
 
 const activeTab = ref('cypher')
@@ -141,51 +124,54 @@ const edgeLimit = ref(100)
 const executing = ref(false)
 const fetchingNodes = ref(false)
 const fetchingEdges = ref(false)
-const queryResult = ref(null)
+const queryResult = ref<any>(null)
 const resultView = ref('table')
 
+interface HistoryItem { query: string; time: string; success: boolean }
+const queryHistory = ref<HistoryItem[]>([])
+
+const cypherTemplates = [
+  { label: '查看所有节点', query: 'MATCH (n) RETURN n LIMIT 25' },
+  { label: '查看概念', query: 'MATCH (n:Concept) RETURN n LIMIT 25' },
+  { label: '查看关系', query: 'MATCH (a)-[r]->(b) RETURN a, r, b LIMIT 25' },
+  { label: '统计标签', query: 'MATCH (n) RETURN labels(n) as label, count(n) as count ORDER BY count DESC' },
+  { label: '统计关系', query: 'MATCH ()-[r]->() RETURN type(r) as type, count(r) as count ORDER BY count DESC' }
+]
+
+const truncate = (s: string, n: number) => s.length > n ? s.slice(0, n) + '...' : s
+
+const clearHistory = () => { queryHistory.value = [] }
+
 const resultColumns = computed(() => {
-  if (!queryResult.value || queryResult.value.length === 0) return []
-  
-  const firstRow = queryResult.value[0]
-  return Object.keys(firstRow).map(key => ({
-    title: key,
-    key: key,
-    ellipsis: {
-      tooltip: true
-    },
-    render: (row) => {
-      const value = row[key]
-      if (typeof value === 'object') {
-        return JSON.stringify(value)
-      }
-      return String(value || '')
+  if (!queryResult.value?.length) return []
+  return Object.keys(queryResult.value[0]).map(key => ({
+    title: key, key, ellipsis: { tooltip: true },
+    render: (row: any) => {
+      const v = row[key]
+      return typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
     }
   }))
 })
 
 const executeCypher = async () => {
-  if (!cypherQuery.value.trim()) {
-    message.warning(t('query.enter_cypher'))
-    return
-  }
-
+  if (!cypherQuery.value.trim()) { message.warning('请输入查询语句'); return }
   executing.value = true
   try {
     const result = await executeCypherQuery(cypherQuery.value)
     if (Array.isArray(result) && result.length > 0) {
       queryResult.value = result
-      message.success(t('query.success'))
+      queryHistory.value.unshift({ query: cypherQuery.value, time: new Date().toLocaleTimeString(), success: true })
+      message.success(`查询成功，${result.length} 条结果`)
     } else {
-      message.warning(t('query.no_results'))
       queryResult.value = null
+      queryHistory.value.unshift({ query: cypherQuery.value, time: new Date().toLocaleTimeString(), success: false })
+      message.warning('无结果')
     }
-  } catch (error) {
-    message.error(t('common.error') + ': ' + error.message)
+  } catch (error: any) {
+    message.error('查询失败: ' + error.message)
+    queryHistory.value.unshift({ query: cypherQuery.value, time: new Date().toLocaleTimeString(), success: false })
     queryResult.value = null
-  } finally {
-    executing.value = false
-  }
+  } finally { executing.value = false }
 }
 
 const fetchNodes = async () => {
@@ -194,17 +180,10 @@ const fetchNodes = async () => {
     const result = await getNodes(nodeLabel.value || null, nodeLimit.value)
     if (Array.isArray(result) && result.length > 0) {
       queryResult.value = result
-      message.success(t('query.found_nodes', { count: result.length }))
-    } else {
-      message.warning(t('query.no_nodes_found'))
-      queryResult.value = null
-    }
-  } catch (error) {
-    message.error(t('common.error') + ': ' + error.message)
-    queryResult.value = null
-  } finally {
-    fetchingNodes.value = false
-  }
+      message.success(`找到 ${result.length} 个节点`)
+    } else { message.warning('未找到节点'); queryResult.value = null }
+  } catch (error: any) { message.error('获取失败: ' + error.message); queryResult.value = null }
+  finally { fetchingNodes.value = false }
 }
 
 const fetchEdges = async () => {
@@ -213,217 +192,123 @@ const fetchEdges = async () => {
     const result = await getEdges(relType.value || null, edgeLimit.value)
     if (Array.isArray(result) && result.length > 0) {
       queryResult.value = result
-      message.success(t('query.found_edges', { count: result.length }))
-    } else {
-      message.warning(t('query.no_edges_found'))
-      queryResult.value = null
-    }
-  } catch (error) {
-    message.error(t('common.error') + ': ' + error.message)
-    queryResult.value = null
-  } finally {
-    fetchingEdges.value = false
-  }
+      message.success(`找到 ${result.length} 个关系`)
+    } else { message.warning('未找到关系'); queryResult.value = null }
+  } catch (error: any) { message.error('获取失败: ' + error.message); queryResult.value = null }
+  finally { fetchingEdges.value = false }
 }
 </script>
 
 <style lang="scss" scoped>
 .query-page {
-  padding: 32px 48px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 70px);
+  padding: 28px 40px;
+  min-height: calc(100vh - 64px);
   position: relative;
 
-  &::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(96, 165, 250, 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.03) 0%, transparent 60%);
-    pointer-events: none;
-    z-index: 0;
+  .page-bg {
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(96, 165, 250, 0.05) 0%, transparent 50%);
+    pointer-events: none; z-index: 0;
   }
 
-  > * {
-    position: relative;
-    z-index: 1;
+  > * { position: relative; z-index: 1; }
+}
+
+.query-header {
+  margin-bottom: 24px; padding: 24px 32px;
+
+  .query-title { font-size: 32px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.5px; }
+  .query-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 0; }
+}
+
+.query-card {
+  :deep(.n-card__content) { padding: 24px; }
+}
+
+// Cypher input
+.cypher-input-wrapper {
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  background: rgba(255,255,255,0.6);
+
+  .cypher-toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: rgba(59,130,246,0.04);
+    border-bottom: 1px solid rgba(59,130,246,0.08);
+  }
+}
+
+.cypher-input {
+  :deep(textarea) {
+    font-family: var(--font-mono) !important;
+    font-size: 14px !important;
+    line-height: 1.7 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 14px 16px !important;
+  }
+}
+
+// Query history
+.query-history {
+  padding: 12px; border-radius: var(--radius-lg);
+  background: rgba(255,255,255,0.6); border: 1px solid rgba(59,130,246,0.1);
+
+  .history-title { font-size: 12px; font-weight: 700; color: var(--color-text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .history-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: all var(--transition-fast);
+    border: 1px solid transparent;
+
+    &:hover { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.15); }
+    .history-query { flex: 1; font-size: 12px; font-family: var(--font-mono); color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+}
+
+// Results
+.query-result {
+  margin-top: 20px;
+
+  :deep(.n-alert) { border-radius: var(--radius-lg); font-weight: 600; }
+
+  :deep(.n-data-table) {
+    border-radius: var(--radius-lg); overflow: hidden;
+    .n-data-table-th { background: linear-gradient(135deg, rgba(59,130,246,0.06), rgba(96,165,250,0.04)); font-weight: 700; text-transform: uppercase; font-size: 12px; }
   }
 
-  .query-header {
-    margin-bottom: 32px;
-    padding: 32px 36px;
-    background: linear-gradient(135deg, 
-      rgba(236, 254, 255, 0.95) 0%, 
-      rgba(224, 242, 254, 0.95) 50%, 
-      rgba(219, 234, 254, 0.95) 100%);
-    border-radius: 24px;
-    backdrop-filter: blur(20px);
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.06),
-      0 2px 8px rgba(0, 0, 0, 0.04),
-      inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    position: relative;
-    overflow: hidden;
-
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, 
-        transparent, 
-        rgba(59, 130, 246, 0.4), 
-        transparent);
-    }
-
-    .query-title {
-      font-size: 36px;
-      font-weight: 700;
-      margin: 0 0 10px 0;
-      letter-spacing: -0.5px;
-    }
-
-    .query-subtitle {
-      font-size: 15px;
-      color: #64748b;
-      margin: 0;
-      font-weight: 500;
-    }
+  :deep(.n-code) {
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.98));
+    padding: 20px; font-size: 13px;
   }
+}
 
-  :deep(.n-card) {
-    border-radius: 24px;
-    box-shadow: 
-      0 8px 32px rgba(0, 0, 0, 0.06),
-      0 2px 12px rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(10px);
-    transition: all 0.3s;
-
-    &:hover {
-      box-shadow: 
-        0 12px 40px rgba(0, 0, 0, 0.08),
-        0 4px 16px rgba(0, 0, 0, 0.06);
-    }
+// Tabs
+:deep(.n-tabs) {
+  .n-tabs-nav {
+    background: linear-gradient(135deg, rgba(248,250,252,0.8), rgba(241,245,249,0.8));
+    border-radius: var(--radius-lg); padding: 6px; margin-bottom: 20px;
   }
-
-  :deep(.n-tabs) {
-    .n-tabs-nav {
-      background: linear-gradient(135deg, 
-        rgba(248, 250, 252, 0.8) 0%, 
-        rgba(241, 245, 249, 0.8) 100%);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      padding: 8px;
-      margin-bottom: 24px;
-    }
-
-    .n-tabs-tab {
-      font-weight: 700;
-      padding: 14px 24px;
-      border-radius: 16px;
-      transition: all 0.3s;
-      letter-spacing: 0.2px;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.8);
-      }
-
-      &.n-tabs-tab--active {
-        background: linear-gradient(135deg, 
-          rgba(255, 255, 255, 1) 0%, 
-          rgba(248, 250, 252, 1) 100%);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      }
-    }
-  }
-
-  :deep(.n-input),
-  :deep(.n-input-number) {
-    .n-input__border,
-    .n-input__state-border {
-      border-radius: 16px;
-    }
-
-    textarea {
-      border-radius: 16px;
-      font-family: 'Cascadia Code', 'Fira Code', monospace;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-  }
-
-  :deep(.n-button) {
-    border-radius: 16px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 44px;
-    padding: 0 28px;
-
-    &:not(:disabled):hover {
-      transform: translateY(-2px);
-    }
-
-    &.n-button--primary-type {
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-
-      &:hover {
-        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-      }
-    }
-  }
-
-  .query-result {
-    margin-top: 24px;
-    animation: fadeInUp 0.6s ease-out;
-
-    :deep(.n-alert) {
-      border-radius: 16px;
-      padding: 16px 20px;
-      font-weight: 600;
-    }
-
-    :deep(.n-data-table) {
-      .n-data-table-th {
-        background: linear-gradient(135deg, 
-          rgba(248, 250, 252, 0.9) 0%, 
-          rgba(241, 245, 249, 0.9) 100%);
-        font-weight: 700;
-        font-size: 14px;
-        letter-spacing: 0.2px;
-      }
-
-      .n-data-table-td {
-        font-size: 14px;
-      }
-    }
-
-    :deep(.n-code) {
-      border-radius: 16px;
-      background: linear-gradient(135deg, 
-        rgba(15, 23, 42, 0.98) 0%, 
-        rgba(30, 41, 59, 0.98) 100%);
+  .n-tabs-tab {
+    font-weight: 700; padding: 12px 20px; border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+    &.n-tabs-tab--active {
+      background: linear-gradient(135deg, #fff, #f8fafc);
+      box-shadow: var(--shadow-sm);
     }
   }
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+:deep(.n-button--primary-type) { box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); border-radius: var(--radius-md) !important; }
+
+// Animations
+.fade-up-enter-active { transition: all 0.5s ease-out; }
+.fade-up-leave-active { transition: all 0.2s ease-in; }
+.fade-up-enter-from { opacity: 0; transform: translateY(30px); }
+.fade-up-leave-to { opacity: 0; transform: translateY(-10px); }
 </style>

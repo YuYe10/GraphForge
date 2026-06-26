@@ -15,7 +15,13 @@ os.environ["TESTING"] = "1"
 os.environ["NEO4J_URI"] = os.getenv("TEST_NEO4J_URI", "bolt://localhost:7687")
 os.environ["NEO4J_USER"] = os.getenv("TEST_NEO4J_USER", "neo4j")
 os.environ["NEO4J_PASSWORD"] = os.getenv("TEST_NEO4J_PASSWORD", "password")
+
+# Redis 测试配置（使用 DB 1 隔离测试数据）
 os.environ["REDIS_URL"] = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/1")
+os.environ["REDIS_DB"] = "1"
+os.environ["REDIS_MAX_CONNECTIONS"] = "5"
+os.environ["REDIS_KEY_PREFIX"] = "graphforge_test"
+os.environ["REDIS_DEFAULT_TTL"] = "3600"
 
 
 @pytest.fixture(scope="session")

@@ -1,130 +1,100 @@
 <template>
   <div class="dashboard-page">
-    <!-- Header Section -->
-    <div class="page-header">
+    <!-- Floating particles background -->
+    <div class="page-bg"></div>
+
+    <!-- Header -->
+    <div class="page-header glass-card">
       <div class="header-content">
-        <h1 class="page-title">GraphForge</h1>
-        <p class="page-subtitle">仪表盘 · Dashboard</p>
+        <h1 class="page-title gradient-text-gold">GraphForge</h1>
+        <p class="page-subtitle">仪表盘 · Dashboard — 知识图谱全景视图</p>
+        <div class="header-stats-mini">
+          <span class="mini-stat" v-if="!loading">
+            <span class="mini-dot" style="background:#10b981"></span>
+            在线 · {{ stats.totalConcepts }} 概念 · {{ stats.totalRelations }} 关系
+          </span>
+        </div>
       </div>
       <div class="header-actions">
-        <n-button type="primary" @click="refreshStats" :loading="loading">
-          <template #icon>
-            <n-icon><refresh-outline /></n-icon>
-          </template>
+        <n-button type="primary" @click="refreshStats" :loading="loading" secondary>
+          <template #icon><n-icon><refresh-outline /></n-icon></template>
           刷新数据
         </n-button>
         <n-button @click="$router.push('/knowledge')">
-          <template #icon>
-            <n-icon><cloud-upload-outline /></n-icon>
-          </template>
+          <template #icon><n-icon><cloud-upload-outline /></n-icon></template>
           知识构建
         </n-button>
       </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="stats-grid">
-      <div class="stat-card" :style="{ '--card-color': '#d4af37' }">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #d4af37, #c9a668);">
-          <n-icon size="32"><document-text-outline /></n-icon>
+    <!-- Stats Cards with staggered animation -->
+    <div class="stats-grid stagger-container">
+      <div class="stat-card" v-for="(card, idx) in statCards" :key="idx" :style="{ '--card-color': card.color }">
+        <div class="stat-icon" :style="{ background: card.bg }">
+          <n-icon size="28"><component :is="card.icon" /></n-icon>
         </div>
         <div class="stat-content">
-          <div class="stat-label">文档总数</div>
-          <div class="stat-value">
-            <n-number-animation :from="0" :to="stats.totalDocuments" :duration="1000" />
+          <div class="stat-label">{{ card.label }}</div>
+          <div class="stat-value-wrap">
+            <n-skeleton v-if="loading" text :width="80" :height="36" />
+            <span v-else class="stat-value count-up">
+              <n-number-animation :from="0" :to="card.value" :duration="1500" />
+              <span v-if="card.suffix" class="stat-suffix">{{ card.suffix }}</span>
+            </span>
           </div>
           <div class="stat-footer">
-            <span class="stat-desc">PDF · Markdown</span>
+            <n-icon v-if="card.trend" size="14" :color="card.trendColor" :component="TrendingUpOutline" />
+            <span class="stat-desc" :style="{ color: card.trendColor }">{{ card.desc }}</span>
           </div>
         </div>
-      </div>
-
-      <div class="stat-card" :style="{ '--card-color': '#c9a668' }">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #c9a668, #b8860b);">
-          <n-icon size="32"><bulb-outline /></n-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">概念节点</div>
-          <div class="stat-value">
-            <n-number-animation :from="0" :to="stats.totalConcepts" :duration="1000" />
-          </div>
-          <div class="stat-footer">
-            <span class="stat-desc">知识体系构建中</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="stat-card" :style="{ '--card-color': '#b8860b' }">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #b8860b, #9a7509);">
-          <n-icon size="32"><git-network-outline /></n-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">关系连接</div>
-          <div class="stat-value">
-            <n-number-animation :from="0" :to="stats.totalRelations" :duration="1000" />
-          </div>
-          <div class="stat-footer">
-            <span class="stat-desc">知识关联网络</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="stat-card" :style="{ '--card-color': '#daa520' }">
-        <div class="stat-icon" style="background: linear-gradient(135deg, #daa520, #c9a668);">
-          <n-icon size="32"><analytics-outline /></n-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">图谱密度</div>
-          <div class="stat-value">
-            <n-number-animation :from="0" :to="graphDensity" :duration="1000" :precision="2" />%
-          </div>
-          <div class="stat-footer">
-            <n-icon :component="TrendingUpOutline" class="trend-icon" />
-            <span class="stat-desc trend-up">持续增长</span>
-          </div>
-        </div>
+        <div class="stat-glow" :style="{ background: card.bg }"></div>
       </div>
     </div>
 
-    <!-- Charts and Info Section -->
-    <div class="content-grid">
-      <!-- Left: Relation Type Distribution -->
-      <div class="chart-section">
+    <!-- Charts & Info Grid -->
+    <div class="content-grid stagger-container">
+      <!-- Relation Type Distribution -->
+      <div class="content-card chart-section">
         <div class="section-header">
           <n-icon size="20"><pie-chart-outline /></n-icon>
           <h3>关系类型分布</h3>
         </div>
         <div class="chart-container">
-          <v-chart v-if="!loading && pieChartOption.series[0].data.length > 0" :option="pieChartOption" autoresize />
-          <n-empty v-else-if="!loading" description="暂无数据" size="small" />
-          <n-spin v-else size="small" />
+          <template v-if="loading">
+            <n-skeleton text style="width:100%;height:300px" :repeat="1" />
+          </template>
+          <template v-else-if="pieChartOption.series[0].data.length > 0">
+            <v-chart :option="pieChartOption" autoresize style="height:320px" />
+          </template>
+          <n-empty v-else description="暂无数据" size="small" />
         </div>
       </div>
 
-      <!-- Middle: Top Concepts -->
-      <div class="info-section">
+      <!-- Top Concepts -->
+      <div class="content-card info-section">
         <div class="section-header">
           <n-icon size="20"><trophy-outline /></n-icon>
           <h3>核心概念排行</h3>
         </div>
         <div class="concepts-list">
-          <n-scrollbar style="max-height: 350px;">
+          <template v-if="loading">
+            <div v-for="i in 5" :key="i" class="skeleton-row">
+              <div class="skeleton skeleton-circle" style="width:32px;height:32px"></div>
+              <div class="skeleton skeleton-text" style="flex:1;height:16px"></div>
+              <div class="skeleton skeleton-text" style="width:60px;height:20px"></div>
+            </div>
+          </template>
+          <n-scrollbar v-else style="max-height: 320px;">
             <div v-if="stats.topConcepts && stats.topConcepts.length > 0">
-              <div 
-                v-for="(concept, index) in stats.topConcepts" 
-                :key="index" 
-                class="concept-item"
-              >
+              <div v-for="(concept, index) in stats.topConcepts" :key="index" class="concept-item">
                 <div class="concept-rank" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
                 <div class="concept-info">
                   <div class="concept-name">{{ concept.name }}</div>
                   <div class="concept-domain" v-if="concept.domain">{{ concept.domain }}</div>
                 </div>
-                <div class="concept-connections">
-                  <n-tag :bordered="false" type="warning" size="small">
-                    {{ concept.connections }} 连接
-                  </n-tag>
-                </div>
+                <n-tag :bordered="false" type="warning" size="small" round>
+                  {{ concept.connections }} 连接
+                </n-tag>
               </div>
             </div>
             <n-empty v-else description="暂无概念数据" size="small" />
@@ -132,64 +102,25 @@
         </div>
       </div>
 
-      <!-- Right: Quick Actions -->
-      <div class="actions-section">
+      <!-- Quick Actions -->
+      <div class="content-card actions-section">
         <div class="section-header">
           <n-icon size="20"><rocket-outline /></n-icon>
           <h3>快速操作</h3>
         </div>
         <div class="quick-actions">
-          <div class="action-card" @click="$router.push('/knowledge')">
-            <div class="action-icon" style="background: linear-gradient(135deg, #d4af37, #b8860b);">
-              <n-icon size="28"><cloud-upload-outline /></n-icon>
+          <div
+            v-for="action in quickActions"
+            :key="action.path"
+            class="action-card"
+            @click="$router.push(action.path)"
+          >
+            <div class="action-icon" :style="{ background: action.bg }">
+              <n-icon size="24"><component :is="action.icon" /></n-icon>
             </div>
             <div class="action-content">
-              <div class="action-title">知识构建</div>
-              <div class="action-desc">导入文档/文本构建知识</div>
-            </div>
-            <n-icon class="action-arrow" size="16"><arrow-forward-outline /></n-icon>
-          </div>
-
-          <div class="action-card" @click="$router.push('/documents')">
-            <div class="action-icon" style="background: linear-gradient(135deg, #c9a668, #9a7509);">
-              <n-icon size="28"><document-text-outline /></n-icon>
-            </div>
-            <div class="action-content">
-              <div class="action-title">文档管理</div>
-              <div class="action-desc">查看和管理已上传文档</div>
-            </div>
-            <n-icon class="action-arrow" size="16"><arrow-forward-outline /></n-icon>
-          </div>
-
-          <div class="action-card" @click="$router.push('/graph')">
-            <div class="action-icon" style="background: linear-gradient(135deg, #c9a668, #9a7509);">
-              <n-icon size="28"><git-network-outline /></n-icon>
-            </div>
-            <div class="action-content">
-              <div class="action-title">图谱可视化</div>
-              <div class="action-desc">探索知识关系网络</div>
-            </div>
-            <n-icon class="action-arrow" size="16"><arrow-forward-outline /></n-icon>
-          </div>
-
-          <div class="action-card" @click="$router.push('/query')">
-            <div class="action-icon" style="background: linear-gradient(135deg, #b8860b, #8b6914);">
-              <n-icon size="28"><search-outline /></n-icon>
-            </div>
-            <div class="action-content">
-              <div class="action-title">知识查询</div>
-              <div class="action-desc">使用 Cypher 查询图谱</div>
-            </div>
-            <n-icon class="action-arrow" size="16"><arrow-forward-outline /></n-icon>
-          </div>
-
-          <div class="action-card" @click="handleAsk">
-            <div class="action-icon" style="background: linear-gradient(135deg, #daa520, #c9a668);">
-              <n-icon size="28"><chatbubble-ellipses-outline /></n-icon>
-            </div>
-            <div class="action-content">
-              <div class="action-title">智能问答</div>
-              <div class="action-desc">向知识图谱提问</div>
+              <div class="action-title">{{ action.title }}</div>
+              <div class="action-desc">{{ action.desc }}</div>
             </div>
             <n-icon class="action-arrow" size="16"><arrow-forward-outline /></n-icon>
           </div>
@@ -197,56 +128,42 @@
       </div>
     </div>
 
+    <!-- Recent Documents Table -->
+    <div class="content-card table-section">
+      <div class="section-header">
+        <n-icon size="20"><document-text-outline /></n-icon>
+        <h3>最近上传的文档</h3>
+      </div>
+      <template v-if="loading">
+        <n-skeleton text :repeat="3" />
+      </template>
+      <template v-else-if="stats.recentDocuments && stats.recentDocuments.length > 0">
+        <n-data-table :columns="docColumns" :data="stats.recentDocuments" :bordered="false" />
+      </template>
+      <n-empty v-else description="暂无文档" size="small" />
+    </div>
+
     <!-- System Status -->
-    <div class="status-section">
+    <div class="content-card status-section">
       <div class="section-header">
         <n-icon size="20"><server-outline /></n-icon>
         <h3>系统状态</h3>
       </div>
       <div class="status-grid">
-        <div class="status-item">
-          <div class="status-icon" style="background: linear-gradient(135deg, #52c41a, #389e0d);">
-            <n-icon size="24"><server-outline /></n-icon>
+        <div v-for="svc in systemServices" :key="svc.name" class="status-item">
+          <div class="status-icon" :style="{ background: svc.bg }">
+            <n-icon size="22"><component :is="svc.icon" /></n-icon>
           </div>
           <div class="status-content">
-            <div class="status-label">Neo4j 图数据库</div>
-            <n-tag :type="systemStatus.neo4j ? 'success' : 'error'" :bordered="false">
-              {{ systemStatus.neo4j ? '运行中' : '离线' }}
+            <div class="status-label">{{ svc.label }}</div>
+            <n-tag :type="svc.ok ? 'success' : 'warning'" :bordered="false" round size="small">
+              <template #icon>
+                <span class="status-pulse" :class="{ active: svc.ok }"></span>
+              </template>
+              {{ svc.status }}
             </n-tag>
           </div>
-        </div>
-        <div class="status-item">
-          <div class="status-icon" style="background: linear-gradient(135deg, #ff7875, #ff4d4f);">
-            <n-icon size="24"><layers-outline /></n-icon>
-          </div>
-          <div class="status-content">
-            <div class="status-label">Redis 队列</div>
-            <n-tag :type="systemStatus.redis ? 'success' : 'warning'" :bordered="false">
-              {{ systemStatus.redis ? '运行中' : '未配置' }}
-            </n-tag>
-          </div>
-        </div>
-        <div class="status-item">
-          <div class="status-icon" style="background: linear-gradient(135deg, #40a9ff, #1890ff);">
-            <n-icon size="24"><cube-outline /></n-icon>
-          </div>
-          <div class="status-content">
-            <div class="status-label">向量检索</div>
-            <n-tag type="info" :bordered="false">
-              {{ systemStatus.vector }}
-            </n-tag>
-          </div>
-        </div>
-        <div class="status-item">
-          <div class="status-icon" style="background: linear-gradient(135deg, #b37feb, #9254de);">
-            <n-icon size="24"><sparkles-outline /></n-icon>
-          </div>
-          <div class="status-content">
-            <div class="status-label">LLM 服务</div>
-            <n-tag :type="systemStatus.llm ? 'success' : 'warning'" :bordered="false">
-              {{ systemStatus.llm ? '已配置' : 'Mock模式' }}
-            </n-tag>
-          </div>
+          <div class="status-bar" :class="{ ok: svc.ok }"></div>
         </div>
       </div>
     </div>
@@ -256,221 +173,132 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
-import { useRouter } from 'vue-router'
-import { 
-  NButton, 
-  NIcon, 
-  NNumberAnimation, 
-  NSpin, 
-  NEmpty,
-  NTag,
-  NDataTable,
-  NScrollbar,
-  useMessage
+import {
+  NButton, NIcon, NNumberAnimation, NSkeleton, NEmpty, NTag,
+  NDataTable, NScrollbar, useMessage
 } from 'naive-ui'
 import {
-  RefreshOutline,
-  CloudUploadOutline,
-  DocumentTextOutline,
-  BulbOutline,
-  GitNetworkOutline,
-  AnalyticsOutline,
-  TrendingUpOutline,
-  PieChartOutline,
-  TrophyOutline,
-  RocketOutline,
-  ArrowForwardOutline,
-  SearchOutline,
-  ChatbubbleEllipsesOutline,
-  TimeOutline,
-  ServerOutline,
-  LayersOutline,
-  CubeOutline,
-  SparklesOutline
+  RefreshOutline, CloudUploadOutline, DocumentTextOutline,
+  BulbOutline, GitNetworkOutline, AnalyticsOutline, TrendingUpOutline,
+  PieChartOutline, TrophyOutline, RocketOutline, ArrowForwardOutline,
+  SearchOutline, ChatbubbleEllipsesOutline, ServerOutline,
+  LayersOutline, CubeOutline, SparklesOutline
 } from '@vicons/ionicons5'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent
-} from 'echarts/components'
-import { getDashboardStats } from '@/api/services'
+import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { getDashboardStats, getRedisHealth } from '@/api/services'
 import QADialog from '@/components/QADialog.vue'
 
-use([
-  CanvasRenderer,
-  PieChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent
-])
+use([CanvasRenderer, PieChart, TitleComponent, TooltipComponent, LegendComponent])
 
-const router = useRouter()
 const message = useMessage()
 
-const loading = ref(false)
+const loading = ref(true)
 const showQADialog = ref(false)
 const stats = ref({
-  totalDocuments: 0,
-  totalConcepts: 0,
-  totalRelations: 0,
-  recentDocuments: [],
-  topConcepts: [],
-  relationTypes: []
+  totalDocuments: 0, totalConcepts: 0, totalRelations: 0,
+  recentDocuments: [] as any[], topConcepts: [] as any[], relationTypes: [] as any[]
 })
 
-const systemStatus = ref({
-  neo4j: true,
-  redis: false,
-  vector: 'FAISS',
-  llm: false
-})
-
-// Computed
 const graphDensity = computed(() => {
   if (stats.value.totalConcepts === 0) return 0
-  const maxPossibleEdges = stats.value.totalConcepts * (stats.value.totalConcepts - 1)
-  if (maxPossibleEdges === 0) return 0
-  return (stats.value.totalRelations / maxPossibleEdges * 100)
+  const max = stats.value.totalConcepts * (stats.value.totalConcepts - 1)
+  return max === 0 ? 0 : +(stats.value.totalRelations / max * 100).toFixed(2)
 })
 
-// Pie Chart Option
+// Stat cards config
+const statCards = computed(() => [
+  { label: '文档总数', value: stats.value.totalDocuments, suffix: '', icon: DocumentTextOutline, color: '#d4af37', bg: 'linear-gradient(135deg, #d4af37, #c9a668)', desc: 'PDF · Markdown', trendColor: '#10b981', trend: true },
+  { label: '概念节点', value: stats.value.totalConcepts, suffix: '', icon: BulbOutline, color: '#c9a668', bg: 'linear-gradient(135deg, #c9a668, #b8860b)', desc: '知识体系', trendColor: '#10b981', trend: true },
+  { label: '关系连接', value: stats.value.totalRelations, suffix: '', icon: GitNetworkOutline, color: '#b8860b', bg: 'linear-gradient(135deg, #b8860b, #9a7509)', desc: '关联网络', trendColor: '#10b981', trend: true },
+  { label: '图谱密度', value: graphDensity.value, suffix: '%', icon: AnalyticsOutline, color: '#daa520', bg: 'linear-gradient(135deg, #daa520, #c9a668)', desc: '持续增长', trendColor: '#10b981', trend: true }
+])
+
+// Quick actions config
+const quickActions = [
+  { title: '知识构建', desc: '导入文档/文本构建知识', path: '/knowledge', icon: CloudUploadOutline, bg: 'linear-gradient(135deg, #d4af37, #b8860b)' },
+  { title: '文档管理', desc: '查看和管理已上传文档', path: '/documents', icon: DocumentTextOutline, bg: 'linear-gradient(135deg, #c9a668, #9a7509)' },
+  { title: '图谱可视化', desc: '探索知识关系网络', path: '/graph', icon: GitNetworkOutline, bg: 'linear-gradient(135deg, #9b87f5, #7c6ae0)' },
+  { title: '知识查询', desc: '使用 Cypher 查询图谱', path: '/query', icon: SearchOutline, bg: 'linear-gradient(135deg, #3b82f6, #2563eb)' },
+  { title: '智能问答', desc: '向知识图谱提问', path: '#', icon: ChatbubbleEllipsesOutline, bg: 'linear-gradient(135deg, #10b981, #059669)' }
+]
+
+// System services — initialized with defaults, updated by health checks
+const redisOk = ref(false)
+const redisStatus = ref('检查中...')
+const llmOk = ref(false)
+const llmStatus = ref('Mock模式')
+
+const systemServices = computed(() => [
+  { name: 'neo4j', label: 'Neo4j 图数据库', icon: ServerOutline, bg: 'linear-gradient(135deg, #10b981, #059669)', ok: stats.value.totalDocuments >= 0, status: '运行中' },
+  { name: 'redis', label: 'Redis 队列', icon: LayersOutline, bg: 'linear-gradient(135deg, #f59e0b, #d97706)', ok: redisOk.value, status: redisStatus.value },
+  { name: 'vector', label: '向量检索', icon: CubeOutline, bg: 'linear-gradient(135deg, #3b82f6, #2563eb)', ok: true, status: 'FAISS' },
+  { name: 'llm', label: 'LLM 服务', icon: SparklesOutline, bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', ok: llmOk.value, status: llmStatus.value }
+])
+
+// Check Redis health on mount
+const checkRedisHealth = async () => {
+  try {
+    const resp = await getRedisHealth()
+    redisOk.value = resp.success
+    redisStatus.value = resp.success
+      ? `运行中 · ${resp.data?.redis_version || ''} · ${resp.data?.used_memory_human || ''}`
+      : (resp.data?.error || '未连接')
+  } catch {
+    redisOk.value = false
+    redisStatus.value = '无法检测'
+  }
+}
+
+// ECharts option
 const pieChartOption = computed(() => {
-  const data = stats.value.relationTypes.map(rt => ({
-    value: rt.count,
-    name: rt.type
-  }))
-
+  const data = stats.value.relationTypes.map((rt: any) => ({ value: rt.count, name: rt.type }))
   return {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
-    },
-    legend: {
-      orient: 'vertical',
-      right: 10,
-      top: 'center',
-      textStyle: {
-        color: '#666'
-      }
-    },
-    series: [
-      {
-        name: '关系类型',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false,
-          position: 'center'
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 18,
-            fontWeight: 'bold',
-            color: '#d4af37'
-          }
-        },
-        labelLine: {
-          show: false
-        },
-        data: data,
-        color: ['#d4af37', '#c9a668', '#b8860b', '#daa520', '#8b6914']
-      }
-    ]
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#666' } },
+    series: [{
+      name: '关系类型', type: 'pie',
+      radius: ['45%', '75%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 3 },
+      label: { show: false },
+      emphasis: {
+        label: { show: true, fontSize: 18, fontWeight: 'bold', color: '#d4af37' },
+        scaleSize: 12,
+        focus: 'self'
+      },
+      labelLine: { show: false },
+      data,
+      color: ['#d4af37', '#c9a668', '#b8860b', '#daa520', '#8b6914', '#9b87f5', '#7c6ae0']
+    }]
   }
 })
 
-// Document Table Columns
+// Document table columns
 const docColumns = [
-  {
-    title: '文件名',
-    key: 'filename',
-    ellipsis: {
-      tooltip: true
-    },
-    render: (row) => {
-      return h('div', { style: 'display: flex; align-items: center; gap: 8px;' }, [
-        h(NIcon, { size: 18, color: '#d4af37' }, { default: () => h(DocumentTextOutline) }),
-        h('span', { style: 'font-weight: 500;' }, row.filename || '未命名文档')
-      ])
-    }
-  },
-  {
-    title: '类型',
-    key: 'kind',
-    width: 100,
-    render: (row) => {
-      const typeMap = {
-        pdf: { text: 'PDF', type: 'error' },
-        md: { text: 'Markdown', type: 'info' },
-        docx: { text: 'Word', type: 'primary' },
-        epub: { text: 'EPUB', type: 'success' }
-      }
-      const config = typeMap[row.kind] || { text: row.kind?.toUpperCase() || 'UNKNOWN', type: 'default' }
-      return h(NTag, { type: config.type, size: 'small', bordered: false }, { default: () => config.text })
-    }
-  },
-  {
-    title: '文档ID',
-    key: 'id',
-    width: 150,
-    ellipsis: {
-      tooltip: true
-    },
-    render: (row) => {
-      return h('code', { style: 'font-size: 12px; color: #666;' }, row.id || 'N/A')
-    }
-  },
-  {
-    title: '上传时间',
-    key: 'createdAt',
-    width: 180,
-    render: (row) => {
-      if (!row.createdAt) return '未知'
-      const date = new Date(row.createdAt)
-      return date.toLocaleString('zh-CN')
-    }
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 120,
-    render: (row) => {
-      return h('div', { style: 'display: flex; gap: 8px;' }, [
-        h(NButton, {
-          size: 'small',
-          type: 'primary',
-          text: true,
-          onClick: () => handleViewDocument(row)
-        }, { default: () => '查看' }),
-        h(NButton, {
-          size: 'small',
-          type: 'error',
-          text: true,
-          onClick: () => handleDeleteDocument(row)
-        }, { default: () => '删除' })
-      ])
-    }
-  }
+  { title: '文件名', key: 'filename', ellipsis: { tooltip: true }, render: (row: any) => h('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+    h(NIcon, { size: 18, color: '#d4af37' }, { default: () => h(DocumentTextOutline) }),
+    h('span', { style: 'font-weight:500' }, row.filename || '未命名')
+  ]) },
+  { title: '类型', key: 'kind', width: 90, render: (row: any) => {
+    const m: Record<string, any> = { pdf: { text: 'PDF', type: 'error' }, md: { text: 'MD', type: 'info' }, docx: { text: 'Word', type: 'primary' }, epub: { text: 'EPUB', type: 'success' } }
+    const c = m[row.kind] || { text: row.kind?.toUpperCase() || '?', type: 'default' }
+    return h(NTag, { type: c.type, size: 'small', bordered: false }, () => c.text)
+  } },
+  { title: '文档ID', key: 'id', width: 120, ellipsis: { tooltip: true }, render: (row: any) => h('code', { style: 'font-size:11px;color:#94a3b8' }, row.id || 'N/A') },
+  { title: '上传时间', key: 'createdAt', width: 170, render: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : 'N/A' }
 ]
 
 // Methods
 const loadStats = async () => {
   loading.value = true
   try {
-    const data = await getDashboardStats()
+    const data: any = await getDashboardStats()
     stats.value = {
       totalDocuments: data.totalDocuments || 0,
       totalConcepts: data.totalConcepts || 0,
@@ -479,210 +307,102 @@ const loadStats = async () => {
       topConcepts: data.topConcepts || [],
       relationTypes: data.relationTypes || []
     }
-    
-    // Update system status based on data
-    systemStatus.value.neo4j = data.totalDocuments >= 0 // If we got data, Neo4j is running
-    
-    // message.success('数据加载成功')
-  } catch (error) {
+  } catch {
     message.error('加载统计数据失败')
-    console.error('Failed to load stats:', error)
   } finally {
     loading.value = false
   }
 }
 
-const refreshStats = () => {
-  loadStats()
-}
+const refreshStats = () => loadStats()
 
-const handleAsk = () => {
-  showQADialog.value = true
-}
-
-const handleViewDocument = (row) => {
-  message.info(`查看文档: ${row.filename}`)
-}
-
-const handleDeleteDocument = (row) => {
-  message.warning(`删除功能开发中: ${row.filename}`)
-}
-
-// Lifecycle
-onMounted(() => {
-  loadStats()
-})
+onMounted(() => { loadStats(); checkRedisHealth() })
 </script>
 
 <style lang="scss" scoped>
 .dashboard-page {
-  padding: 32px 48px;
-  background: #f5f7fa;
-  min-height: calc(100vh - 70px);
+  padding: 28px 40px;
+  min-height: calc(100vh - 64px);
   position: relative;
 
-  &::before {
-    content: '';
+  .page-bg {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 20%, rgba(212, 175, 55, 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, rgba(218, 165, 32, 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 50% 50%, rgba(184, 134, 11, 0.03) 0%, transparent 60%);
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 15% 15%, rgba(212, 175, 55, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 85%, rgba(155, 135, 245, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(184, 134, 11, 0.03) 0%, transparent 60%);
     pointer-events: none;
     z-index: 0;
   }
 
-  > * {
-    position: relative;
-    z-index: 1;
-  }
-
-  // 统一按钮样式 - 移除所有默认边框颜色
-  :deep(.n-button) {
-    border: none !important;
-    
-    &:focus {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
-    }
-  }
-
-  :deep(.n-button--primary-type) {
-    background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%) !important;
-    border: none !important;
-    box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
-    color: white;
-    
-    &:hover {
-      background: linear-gradient(135deg, #c9a668 0%, #9a7509 100%) !important;
-      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
-      transform: translateY(-1px);
-    }
-    
-    &:active {
-      background: linear-gradient(135deg, #b8860b 0%, #8b6914 100%) !important;
-      transform: translateY(0);
-    }
-    
-    &:focus {
-      outline: none;
-      box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.3);
-    }
-  }
-
-  :deep(.n-button--default-type) {
-    background: white;
-    border: 1px solid #e0e0e0 !important;
-    color: #666;
-    
-    &:hover {
-      background: #fafafa;
-      border-color: #d4af37 !important;
-      color: #d4af37;
-      transform: translateY(-1px);
-    }
-    
-    &:active {
-      background: #f0f0f0;
-      transform: translateY(0);
-    }
-    
-    &:focus {
-      outline: none;
-      border-color: #d4af37 !important;
-      box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
-    }
-  }
-
-  :deep(.n-button--text-type) {
-    color: #d4af37;
-    border: none !important;
-    
-    &:hover {
-      background: rgba(212, 175, 55, 0.1);
-      color: #b8860b;
-    }
-    
-    &:active {
-      background: rgba(212, 175, 55, 0.2);
-    }
-  }
-
-  :deep(.n-button--error-type) {
-    color: #ff4d4f;
-    
-    &:hover {
-      background: rgba(255, 77, 79, 0.1);
-      color: #cf1322;
-    }
-  }
+  > * { position: relative; z-index: 1; }
 }
 
+// Header
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 32px;
-}
+  margin-bottom: 28px;
+  padding: 28px 32px;
 
-.header-content {
-  flex: 1;
-
-  .page-title {
-    font-size: 32px;
-    font-weight: 700;
-    margin: 0 0 8px 0;
-    background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .header-content {
+    .page-title { font-size: 34px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+    .page-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 6px 0; font-weight: 500; }
+    .header-stats-mini {
+      margin-top: 8px;
+      .mini-stat { font-size: 12px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; font-weight: 500; }
+      .mini-dot { width: 8px; height: 8px; border-radius: 50%; animation: pulseGlow 2s ease-in-out infinite; }
+    }
   }
 
-  .page-subtitle {
-    font-size: 14px;
-    color: #666;
-    margin: 0;
-  }
+  .header-actions { display: flex; gap: 10px; flex-shrink: 0; }
 }
 
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
+// Stats grid
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  margin-bottom: 32px;
+  gap: 20px;
+  margin-bottom: 28px;
 }
 
 .stat-card {
-  background: white;
-  border-radius: 16px;
+  position: relative;
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
   padding: 24px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  border: 2px solid transparent;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  gap: 18px;
+  border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
   cursor: pointer;
+  overflow: hidden;
+
+  .stat-glow {
+    position: absolute;
+    inset: -50%;
+    opacity: 0;
+    transition: opacity var(--transition-base);
+    filter: blur(60px);
+    pointer-events: none;
+  }
 
   &:hover {
-    border-color: var(--card-color);
-    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
     transform: translateY(-4px);
+    box-shadow: var(--shadow-lg), 0 0 30px var(--color-primary-glow);
+    border-color: var(--color-primary-light);
+
+    .stat-glow { opacity: 0.08; }
   }
 
   .stat-icon {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -695,289 +415,188 @@ onMounted(() => {
     flex: 1;
     min-width: 0;
 
-    .stat-label {
-      font-size: 14px;
-      color: #999;
-      margin-bottom: 8px;
-    }
-
+    .stat-label { font-size: 13px; color: var(--color-text-muted); font-weight: 500; margin-bottom: 6px; }
+    .stat-value-wrap { margin-bottom: 6px; }
     .stat-value {
-      font-size: 32px;
-      font-weight: 700;
-      color: #333;
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--color-text);
       line-height: 1;
-      margin-bottom: 8px;
+      letter-spacing: -0.5px;
     }
-
+    .stat-suffix { font-size: 16px; font-weight: 600; color: var(--color-text-secondary); margin-left: 2px; }
     .stat-footer {
       display: flex;
       align-items: center;
       gap: 4px;
       font-size: 12px;
-
-      .stat-desc {
-        color: #666;
-
-        &.trend-up {
-          color: #52c41a;
-          font-weight: 600;
-        }
-      }
-
-      .trend-icon {
-        color: #52c41a;
-      }
+      font-weight: 500;
     }
   }
 }
 
+// Content grid
 .content-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 32px;
+  gap: 20px;
+  margin-bottom: 28px;
 }
 
-.chart-section,
-.info-section,
-.actions-section {
-  background: white;
-  border-radius: 16px;
+.content-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
   padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-light);
+  transition: all var(--transition-base);
 
   &:hover {
-    border-color: rgba(212, 175, 55, 0.3);
-    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(194, 164, 116, 0.2);
   }
 
   .section-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--color-border-light);
 
-    h3 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    .n-icon {
-      color: #d4af37;
-    }
+    h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--color-text); }
+    .n-icon { color: var(--color-primary-light); }
   }
 }
 
-.chart-container {
-  height: 350px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+// Chart
+.chart-container { min-height: 320px; display: flex; align-items: center; justify-content: center; }
 
+// Concepts
 .concepts-list {
   .concept-item {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    background: #fafafa;
-    transition: all 0.2s ease;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+    background: var(--color-bg-alt);
+    transition: all var(--transition-fast);
 
     &:hover {
-      background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 134, 11, 0.1));
+      background: linear-gradient(135deg, var(--color-primary-subtle), rgba(155, 135, 245, 0.06));
       transform: translateX(4px);
     }
 
     .concept-rank {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 30px; height: 30px;
+      border-radius: var(--radius-sm);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      font-size: 14px;
-      background: #e0e0e0;
-      color: #666;
+      font-weight: 700; font-size: 13px;
+      background: #e2e8f0; color: #64748b;
 
-      &.rank-1 {
-        background: linear-gradient(135deg, #d4af37, #b8860b);
-        color: white;
-      }
-
-      &.rank-2 {
-        background: linear-gradient(135deg, #c9a668, #9a7509);
-        color: white;
-      }
-
-      &.rank-3 {
-        background: linear-gradient(135deg, #daa520, #c9a668);
-        color: white;
-      }
+      &.rank-1 { background: linear-gradient(135deg, #d4af37, #b8860b); color: #fff; }
+      &.rank-2 { background: linear-gradient(135deg, #c9a668, #9a7509); color: #fff; }
+      &.rank-3 { background: linear-gradient(135deg, #daa520, #c9a668); color: #fff; }
     }
 
     .concept-info {
-      flex: 1;
-      min-width: 0;
-
-      .concept-name {
-        font-weight: 600;
-        font-size: 14px;
-        color: #333;
-        margin-bottom: 4px;
-      }
-
-      .concept-domain {
-        font-size: 12px;
-        color: #999;
-      }
-    }
-
-    .concept-connections {
-      flex-shrink: 0;
+      flex: 1; min-width: 0;
+      .concept-name { font-weight: 600; font-size: 14px; color: var(--color-text); margin-bottom: 2px; }
+      .concept-domain { font-size: 11px; color: var(--color-text-muted); }
     }
   }
 }
 
+// Quick actions
 .quick-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 
   .action-card {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px;
-    border-radius: 12px;
-    background: #fafafa;
+    gap: 14px;
+    padding: 14px;
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-alt);
     cursor: pointer;
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
+    transition: all var(--transition-base);
+    border: 1px solid transparent;
 
     &:hover {
-      background: white;
-      border-color: rgba(212, 175, 55, 0.5);
-      box-shadow: 0 4px 16px rgba(212, 175, 55, 0.2);
+      background: var(--color-surface);
+      border-color: rgba(194, 164, 116, 0.4);
+      box-shadow: 0 4px 16px rgba(194, 164, 116, 0.15);
       transform: translateX(4px);
 
-      .action-arrow {
-        transform: translateX(4px);
-      }
+      .action-arrow { transform: translateX(4px); opacity: 1; }
     }
 
     .action-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+      width: 44px; height: 44px;
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
       flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+      box-shadow: 0 4px 10px rgba(212, 175, 55, 0.25);
     }
 
     .action-content {
       flex: 1;
-
-      .action-title {
-        font-weight: 600;
-        font-size: 14px;
-        color: #333;
-        margin-bottom: 4px;
-      }
-
-      .action-desc {
-        font-size: 12px;
-        color: #999;
-      }
+      .action-title { font-weight: 600; font-size: 14px; color: var(--color-text); margin-bottom: 2px; }
+      .action-desc { font-size: 12px; color: var(--color-text-muted); }
     }
 
     .action-arrow {
-      color: #d4af37;
-      transition: transform 0.3s ease;
+      color: var(--color-primary-light);
+      transition: all var(--transition-base);
+      opacity: 0.5;
     }
   }
 }
 
-.table-section,
-.status-section {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
+// Table & Status sections
+.table-section, .status-section {
   margin-bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
-
-  &:hover {
-    border-color: rgba(212, 175, 55, 0.3);
-    box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 20px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid #f0f0f0;
-
-    h3 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    .n-icon {
-      color: #d4af37;
-    }
-  }
 }
 
 .status-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
 
   .status-item {
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
+    position: relative;
+    padding: 18px;
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
-    gap: 16px;
-    transition: all 0.3s ease;
-    border: 2px solid transparent;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    gap: 14px;
+    transition: all var(--transition-fast);
+    border: 1px solid var(--color-border-light);
+    overflow: hidden;
 
     &:hover {
-      border-color: rgba(212, 175, 55, 0.3);
-      box-shadow: 0 4px 16px rgba(212, 175, 55, 0.2);
+      border-color: rgba(194, 164, 116, 0.3);
+      box-shadow: var(--shadow-md);
       transform: translateY(-2px);
     }
 
     .status-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
+      width: 42px; height: 42px;
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
       flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .status-content {
@@ -985,63 +604,74 @@ onMounted(() => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      min-width: 0;
+      .status-label { font-size: 13px; font-weight: 600; color: var(--color-text); }
+    }
 
-      .status-label {
-        font-size: 14px;
-        font-weight: 600;
-        color: #333;
-      }
+    .status-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: #ef4444;
+      transition: background var(--transition-base);
+      &.ok { background: linear-gradient(90deg, #10b981, #34d399); }
     }
   }
 }
 
-:deep(.n-data-table) {
-  .n-data-table-th {
-    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(184, 134, 11, 0.1));
-    color: #d4af37;
-    font-weight: 600;
-  }
-
-  .n-data-table-tr:hover {
-    background: linear-gradient(135deg, rgba(212, 175, 55, 0.05), rgba(184, 134, 11, 0.05));
-  }
+// Status pulse
+.status-pulse {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #d1d5db;
+  margin-right: 2px;
+  &.active { background: #10b981; animation: pulse 2s ease-in-out infinite; }
 }
 
-@media (max-width: 1440px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+// Skeleton
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-alt);
+}
 
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
+// Skeleton text
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmerSlow 1.5s linear infinite;
+  border-radius: 4px;
+}
 
-  .status-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.skeleton-text { height: 14px; margin-bottom: 6px; border-radius: var(--radius-sm); }
+.skeleton-circle { border-radius: 50%; flex-shrink: 0; }
+
+@keyframes shimmerSlow {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+// Responsive
+@media (max-width: 1400px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .content-grid { grid-template-columns: 1fr; }
+  .status-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .dashboard-page {
-    padding: 16px;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .header-actions {
-    width: 100%;
-    
-    button {
-      flex: 1;
-    }
-  }
+  .dashboard-page { padding: 16px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .status-grid { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; gap: 16px; }
+  .header-actions { width: 100%; button { flex: 1; } }
 }
 </style>

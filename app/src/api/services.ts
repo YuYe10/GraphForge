@@ -324,7 +324,10 @@ export const updateAISettings = (settings: AISettings): Promise<any> =>
 export const testAIConnection = (settings: AISettings): Promise<any> => 
   api.post('/settings/test-connection', settings)
 
-export const getOllamaModels = (): Promise<{ success: boolean; models: string[]; message?: string }> => 
+export const getRedisHealth = (): Promise<{ success: boolean; data: any; message: string }> =>
+  api.get('/settings/redis/health')
+
+export const getOllamaModels = (): Promise<{ success: boolean; models: string[]; message?: string }> =>
   api.get('/settings/ollama/models')
 
 // ========== Graph CRUD Operations ==========

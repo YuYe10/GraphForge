@@ -213,6 +213,26 @@ async def test_ai_connection(ai_settings: AISettings):
         }
 
 
+@router.get("/redis/health")
+async def redis_health():
+    """检查 Redis 连接健康状态。"""
+    try:
+        from infra.queue import get_queue
+        queue = get_queue()
+        health = queue.health_check()
+        return {
+            "success": health["connected"],
+            "data": health,
+            "message": "Redis 连接正常" if health["connected"] else "Redis 未连接",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": {"connected": False, "error": str(e)},
+            "message": f"Redis 健康检查异常: {str(e)}",
+        }
+
+
 @router.get("/ollama/models")
 async def get_ollama_models():
     """Get available Ollama models."""

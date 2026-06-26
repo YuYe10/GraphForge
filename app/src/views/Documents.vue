@@ -1,241 +1,99 @@
 <template>
   <div class="documents-page">
-    <!-- Page Header -->
-    <div class="page-header">
+    <div class="page-bg"></div>
+
+    <!-- Header -->
+    <div class="page-header glass-card">
       <div class="header-content">
-        <h1 class="page-title">文档管理</h1>
-        <p class="page-subtitle">查看和管理已上传的文档</p>
+        <h1 class="page-title gradient-text-blue">文档管理</h1>
+        <p class="page-subtitle">查看和管理已上传的文档 · Document Management</p>
       </div>
       <div class="header-actions">
         <n-button type="primary" @click="loadDocuments" :loading="loading">
-          <template #icon>
-            <n-icon><refresh-outline /></n-icon>
-          </template>
-          刷新列表
+          <template #icon><n-icon><refresh-outline /></n-icon></template>
+          刷新
         </n-button>
-        <n-button type="success" @click="$router.push('/upload')">
-          <template #icon>
-            <n-icon><cloud-upload-outline /></n-icon>
-          </template>
-          上传新文档
+        <n-button @click="$router.push('/knowledge')">
+          <template #icon><n-icon><cloud-upload-outline /></n-icon></template>
+          上传文档
         </n-button>
       </div>
     </div>
 
-    <!-- Content -->
-    <n-space vertical :size="24">
-      <!-- Stats Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1e40af);">
-            <n-icon size="32"><document-text-outline /></n-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-label">总文档数</div>
-            <div class="stat-value">{{ totalDocuments }}</div>
-          </div>
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card" v-for="s in statCards" :key="s.label">
+        <div class="stat-icon" :style="{ background: s.bg }">
+          <n-icon size="28"><component :is="s.icon" /></n-icon>
         </div>
-
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
-            <n-icon size="32"><checkmark-circle-outline /></n-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-label">已处理</div>
-            <div class="stat-value">{{ completedDocuments }}</div>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-            <n-icon size="32"><hourglass-outline /></n-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-label">待处理</div>
-            <div class="stat-value">{{ pendingDocuments }}</div>
-          </div>
+        <div class="stat-content">
+          <div class="stat-label">{{ s.label }}</div>
+          <div class="stat-value count-up">{{ s.value }}</div>
         </div>
       </div>
+    </div>
 
-      <!-- Documents Table -->
-      <n-card :bordered="false" class="documents-card">
-        <template #header>
-          <div class="card-header">
-            <h2>所有文档</h2>
-            <n-space>
-              <n-select
-                v-model:value="sortBy"
-                :options="[
-                  { label: '最新上传', value: 'created_at' },
-                  { label: '文件名', value: 'filename' }
-                ]"
-                style="width: 150px"
-                @update:value="loadDocuments"
-              />
-            </n-space>
-          </div>
-        </template>
+    <!-- Documents Table -->
+    <n-card class="documents-card glass-card" :bordered="false">
+      <template #header>
+        <div class="card-header">
+          <h3>所有文档</h3>
+          <n-select v-model:value="sortBy" :options="[{ label: '最新上传', value: 'created_at' }, { label: '文件名', value: 'filename' }]" style="width: 150px" @update:value="loadDocuments" />
+        </div>
+      </template>
 
-        <n-spin :show="loading">
-          <div v-if="documents.length === 0" class="empty-state">
-            <n-empty description="暂无文档">
-              <template #extra>
-                <n-button type="primary" @click="$router.push('/upload')">
-                  上传第一个文档
-                </n-button>
-              </template>
-            </n-empty>
-          </div>
+      <n-spin :show="loading">
+        <div v-if="documents.length === 0" class="empty-state">
+          <n-empty description="暂无文档">
+            <template #extra>
+              <n-button type="primary" @click="$router.push('/knowledge')">上传第一个文档</n-button>
+            </template>
+          </n-empty>
+        </div>
 
-          <n-data-table
-            v-else
-            :columns="columns"
-            :data="documents"
-            :pagination="pagination"
-            :loading="loading"
-            :scroll-x="1200"
-            striped
-          />
-        </n-spin>
-      </n-card>
-    </n-space>
+        <n-data-table v-else :columns="columns" :data="documents" :pagination="pagination" :scroll-x="1200" striped />
+      </n-spin>
+    </n-card>
 
-    <!-- Document Detail Modal -->
-    <n-modal
-      v-model:show="showDetailModal"
-      :title="`文档详情 - ${selectedDocument?.filename || ''}`"
-      positive-text=""
-      negative-text="关闭"
-      :mask-closable="false"
-      preset="dialog"
-      style="width: 80%; max-width: 1000px"
-    >
+    <!-- Detail Modal -->
+    <n-modal v-model:show="showDetailModal" preset="dialog" :title="`文档详情 — ${selectedDocument?.filename || ''}`" style="width: 85%; max-width: 1000px" :mask-closable="false">
       <div v-if="selectedDocument && documentDetail" class="document-detail">
-        <!-- Basic Info -->
         <n-divider>基本信息</n-divider>
         <n-grid :cols="2" :x-gap="24" :y-gap="12">
-          <n-gi>
-            <div class="info-item">
-              <span class="label">文件名:</span>
-              <span class="value">{{ documentDetail.filename }}</span>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="info-item">
-              <span class="label">文件类型:</span>
-              <n-tag :type="getKindColor(documentDetail.kind)">
-                {{ documentDetail.kind.toUpperCase() }}
-              </n-tag>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="info-item">
-              <span class="label">文件大小:</span>
-              <span class="value">{{ formatFileSize(documentDetail.size) }}</span>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="info-item">
-              <span class="label">处理状态:</span>
-              <n-tag
-                :type="documentDetail.processing_status === 'completed' ? 'success' : 'warning'"
-              >
-                {{ documentDetail.processing_status === 'completed' ? '已完成' : '待处理' }}
-              </n-tag>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="info-item">
-              <span class="label">上传时间:</span>
-              <span class="value">{{ formatTime(documentDetail.created_at) }}</span>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="info-item">
-              <span class="label">更新时间:</span>
-              <span class="value">{{ formatTime(documentDetail.updated_at) }}</span>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="info-item">
-              <span class="label">MIME 类型:</span>
-              <span class="value">{{ documentDetail.mime }}</span>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="info-item">
-              <span class="label">Checksum:</span>
-              <span class="value" style="font-family: monospace; font-size: 12px;">
-                {{ documentDetail.checksum.substring(0, 16) }}...
-              </span>
-            </div>
-          </n-gi>
+          <n-gi><div class="info-item"><span class="label">文件名:</span><span class="value">{{ documentDetail.filename }}</span></div></n-gi>
+          <n-gi><div class="info-item"><span class="label">类型:</span><n-tag :type="getKindColor(documentDetail.kind)">{{ documentDetail.kind?.toUpperCase() }}</n-tag></div></n-gi>
+          <n-gi><div class="info-item"><span class="label">大小:</span><span class="value">{{ formatFileSize(documentDetail.size) }}</span></div></n-gi>
+          <n-gi><div class="info-item"><span class="label">状态:</span><n-tag :type="documentDetail.processing_status === 'completed' ? 'success' : 'warning'">{{ documentDetail.processing_status === 'completed' ? '已完成' : '待处理' }}</n-tag></div></n-gi>
+          <n-gi><div class="info-item"><span class="label">上传时间:</span><span class="value">{{ formatTime(documentDetail.created_at) }}</span></div></n-gi>
+          <n-gi><div class="info-item"><span class="label">更新时间:</span><span class="value">{{ formatTime(documentDetail.updated_at) }}</span></div></n-gi>
         </n-grid>
 
-        <!-- Statistics -->
         <n-divider>处理统计</n-divider>
-        <n-grid :cols="4" :x-gap="16" :y-gap="12">
-          <n-gi>
-            <div class="stat-box">
-              <div class="stat-value">{{ documentDetail.statistics.chunk_count }}</div>
-              <div class="stat-label">文本块</div>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="stat-box">
-              <div class="stat-value">{{ documentDetail.statistics.concept_count }}</div>
-              <div class="stat-label">概念节点</div>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="stat-box">
-              <div class="stat-value">{{ documentDetail.statistics.claim_count }}</div>
-              <div class="stat-label">论断</div>
-            </div>
-          </n-gi>
-          <n-gi>
-            <div class="stat-box">
-              <div class="stat-value">{{ documentDetail.statistics.relation_count }}</div>
-              <div class="stat-label">关系</div>
-            </div>
-          </n-gi>
+        <n-grid :cols="4" :x-gap="16">
+          <n-gi v-for="st in docStats" :key="st.label"><div class="stat-box"><div class="sv">{{ st.value }}</div><div class="sl">{{ st.label }}</div></div></n-gi>
         </n-grid>
 
-        <!-- Themes -->
-        <n-divider v-if="documentDetail.themes.length > 0">关联主题</n-divider>
-        <div v-if="documentDetail.themes.length > 0">
+        <n-divider v-if="documentDetail.themes?.length">关联主题</n-divider>
+        <div v-if="documentDetail.themes?.length">
           <n-space vertical :size="12">
             <div v-for="theme in documentDetail.themes" :key="theme.id" class="theme-item">
-              <n-card :bordered="false" style="background: #f5f7fa;">
+              <n-card :bordered="false" size="small">
                 <div class="theme-header">
-                  <n-tag :type="theme.level === 1 ? 'success' : 'info'">
-                    Level {{ theme.level }}
-                  </n-tag>
-                  <h4 style="margin: 0 16px; flex: 1;">{{ theme.label }}</h4>
-                  <span style="color: #999; font-size: 14px;">{{ theme.member_count }} 成员</span>
+                  <n-tag :type="theme.level === 1 ? 'success' : 'info'" size="small">Level {{ theme.level }}</n-tag>
+                  <span class="theme-label">{{ theme.label }}</span>
+                  <span class="theme-count">{{ theme.member_count }} 成员</span>
                 </div>
                 <p class="theme-summary">{{ theme.summary }}</p>
               </n-card>
             </div>
           </n-space>
         </div>
-        <div v-else class="empty-message">暂无关联主题</div>
-
-        <!-- Metadata -->
-        <n-divider v-if="Object.keys(documentDetail.meta).length > 0">元数据</n-divider>
-        <div v-if="Object.keys(documentDetail.meta).length > 0">
-          <n-code
-            :code="JSON.stringify(documentDetail.meta, null, 2)"
-            language="json"
-            word-wrap
-          />
-        </div>
 
         <n-divider>文档预览</n-divider>
         <div v-if="canPreview" class="preview-container">
-          <iframe :src="previewUrl" class="preview-frame" title="文档预览" />
+          <iframe :src="previewUrl" class="preview-frame" title="预览" />
         </div>
-        <div v-else class="empty-message">当前文件类型暂不支持在线预览，请下载后查看。</div>
+        <div v-else class="empty-msg">当前文件类型暂不支持在线预览</div>
       </div>
     </n-modal>
   </div>
@@ -244,401 +102,131 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage } from 'naive-ui'
-import {
-  NButton,
-  NTag,
-  NIcon
-} from 'naive-ui'
-import {
-  RefreshOutline,
-  CloudUploadOutline,
-  DocumentTextOutline,
-  CheckmarkCircleOutline,
-  HourglassOutline
-} from '@vicons/ionicons5'
+import { useMessage, NButton, NTag, NIcon } from 'naive-ui'
+import { RefreshOutline, CloudUploadOutline, DocumentTextOutline, CheckmarkCircleOutline, HourglassOutline } from '@vicons/ionicons5'
 import { listDocuments, getDocumentDetail, getDocumentFileUrl, type DocumentListResponse, type DocumentDetail } from '@/api/services'
 
 const router = useRouter()
 const message = useMessage()
 
-// State
 const loading = ref(false)
 const documents = ref<DocumentListResponse['documents']>([])
-const pagination = ref({
-  page: 1,
-  pageSize: 20,
-  pageCount: 1,
-  prefix: (info: any) => `共 ${info.itemCount} 条`,
-  onChange: (page: number) => {
-    pagination.value.page = page
-    loadDocuments()
-  }
-})
-
+const pagination = ref({ page: 1, pageSize: 20, pageCount: 1, prefix: (info: any) => `共 ${info.itemCount} 条`, onChange: (p: number) => { pagination.value.page = p; loadDocuments() } })
 const sortBy = ref<'created_at' | 'filename'>('created_at')
 const showDetailModal = ref(false)
-const selectedDocument = ref<DocumentListResponse['documents'][0] | null>(null)
+const selectedDocument = ref<any>(null)
 const documentDetail = ref<DocumentDetail | null>(null)
-const loadingDetail = ref(false)
 const previewUrl = computed(() => selectedDocument.value ? getDocumentFileUrl(selectedDocument.value.id) : '')
-const canPreview = computed(() => {
-  if (!documentDetail.value) return false
-  const mime = (documentDetail.value.mime || '').toLowerCase()
-  const kind = (documentDetail.value.kind || '').toLowerCase()
-  return mime.includes('pdf') || kind === 'pdf'
-})
+const canPreview = computed(() => documentDetail.value && (documentDetail.value.mime?.includes('pdf') || documentDetail.value.kind === 'pdf'))
 
-// Computed
 const totalDocuments = computed(() => documents.value.length)
 const completedDocuments = computed(() => documents.value.filter(d => d.processing_status === 'completed').length)
 const pendingDocuments = computed(() => documents.value.filter(d => d.processing_status === 'uploaded').length)
 
-// Methods
+const statCards = computed(() => [
+  { label: '总文档数', value: totalDocuments.value, icon: DocumentTextOutline, bg: 'linear-gradient(135deg, #3b82f6, #1e40af)' },
+  { label: '已处理', value: completedDocuments.value, icon: CheckmarkCircleOutline, bg: 'linear-gradient(135deg, #10b981, #059669)' },
+  { label: '待处理', value: pendingDocuments.value, icon: HourglassOutline, bg: 'linear-gradient(135deg, #f59e0b, #d97706)' }
+])
+
+const docStats = computed(() => {
+  const s = documentDetail.value?.statistics
+  return s ? [
+    { label: '文本块', value: s.chunk_count },
+    { label: '概念节点', value: s.concept_count },
+    { label: '论断', value: s.claim_count },
+    { label: '关系', value: s.relation_count }
+  ] : []
+})
+
 const loadDocuments = async () => {
   loading.value = true
   try {
     const skip = (pagination.value.page - 1) * pagination.value.pageSize
-    const result = await listDocuments(skip, pagination.value.pageSize, sortBy.value)
-    documents.value = result.documents
-    pagination.value.pageCount = Math.ceil(result.total / pagination.value.pageSize)
-  } catch (error: any) {
-    message.error(`加载文档列表失败: ${error.message}`)
-  } finally {
-    loading.value = false
-  }
+    const r = await listDocuments(skip, pagination.value.pageSize, sortBy.value)
+    documents.value = r.documents
+    pagination.value.pageCount = Math.ceil(r.total / pagination.value.pageSize)
+  } catch (e: any) { message.error('加载失败: ' + e.message) }
+  finally { loading.value = false }
 }
 
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
+const formatFileSize = (b: number) => { if (!b) return '0 B'; const k = 1024; const sizes = ['B','KB','MB','GB']; const i = Math.floor(Math.log(b) / Math.log(k)); return Math.round(b / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i] }
+const formatTime = (t: string | null) => !t ? '未知' : new Date(t).toLocaleString('zh-CN')
+const getKindColor = (k: string) => ({ pdf: 'error', md: 'info', txt: 'warning', word: 'success' } as any)[k] || 'default'
+
+const handleViewDocument = async (doc: any) => {
+  selectedDocument.value = doc; showDetailModal.value = true
+  try { documentDetail.value = await getDocumentDetail(doc.id) } catch (e: any) { message.error('加载详情失败') }
 }
 
-const formatTime = (time: string | null) => {
-  if (!time) return '未知'
-  try {
-    const date = new Date(time)
-    return date.toLocaleString('zh-CN')
-  } catch {
-    return time
-  }
-}
+const columns = [
+  { title: '文件名', key: 'filename', width: 250, ellipsis: { tooltip: true } },
+  { title: '类型', key: 'kind', width: 80, render: (r: any) => h(NTag, { type: getKindColor(r.kind) }, () => r.kind?.toUpperCase()) },
+  { title: '大小', key: 'size', width: 100, render: (r: any) => formatFileSize(r.size) },
+  { title: '文本块', key: 'chunk_count', width: 80, align: 'center' as const, render: (r: any) => h('span', { style: 'font-weight:700;color:#3b82f6' }, r.chunk_count) },
+  { title: '概念', key: 'concept_count', width: 80, align: 'center' as const, render: (r: any) => h('span', { style: 'font-weight:700;color:#10b981' }, r.concept_count) },
+  { title: '状态', key: 'processing_status', width: 90, render: (r: any) => h(NTag, { type: r.processing_status === 'completed' ? 'success' : 'warning' }, () => r.processing_status === 'completed' ? '已完成' : '待处理') },
+  { title: '上传时间', key: 'created_at', width: 170, render: (r: any) => formatTime(r.created_at) },
+  { title: '操作', key: 'actions', width: 200, fixed: 'right' as const, render: (r: any) => h('div', { style: 'display:flex;gap:8px' }, [
+    h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => handleViewDocument(r) }, () => '查看'),
+    h(NButton, { size: 'small', type: 'info', text: true, onClick: () => router.push(`/graph?doc_id=${r.id}`) }, () => '图谱')
+  ]) }
+]
 
-const getKindColor = (kind: string) => {
-  const colors: Record<string, 'success' | 'warning' | 'info' | 'error'> = {
-    pdf: 'error',
-    md: 'info',
-    txt: 'warning',
-    word: 'success'
-  }
-  return colors[kind] || 'default'
-}
-
-const handleViewDocument = async (doc: DocumentListResponse['documents'][0]) => {
-  selectedDocument.value = doc
-  showDetailModal.value = true
-  loadingDetail.value = true
-  try {
-    documentDetail.value = await getDocumentDetail(doc.id)
-  } catch (error: any) {
-    message.error(`加载文档详情失败: ${error.message}`)
-  } finally {
-    loadingDetail.value = false
-  }
-}
-
-const handleViewGraph = (doc: DocumentListResponse['documents'][0]) => {
-  router.push(`/graph?doc_id=${doc.id}`)
-}
-
-const handleDeleteDocument = (_doc: DocumentListResponse['documents'][0]) => {
-  // TODO: Implement delete functionality
-}
-
-// Table columns
-const columns = computed(() => [
-  {
-    title: '文件名',
-    key: 'filename',
-    width: 250,
-    ellipsis: { tooltip: true },
-    render: (row: any) => row.filename
-  },
-  {
-    title: '类型',
-    key: 'kind',
-    width: 80,
-    render: (row: any) => h(NTag, { type: getKindColor(row.kind) }, () => row.kind.toUpperCase())
-  },
-  {
-    title: '大小',
-    key: 'size',
-    width: 100,
-    render: (row: any) => formatFileSize(row.size)
-  },
-  {
-    title: '文本块',
-    key: 'chunk_count',
-    width: 80,
-    align: 'center' as const,
-    render: (row: any) => h('span', { style: 'font-weight: bold; color: #3b82f6;' }, row.chunk_count)
-  },
-  {
-    title: '概念',
-    key: 'concept_count',
-    width: 80,
-    align: 'center' as const,
-    render: (row: any) => h('span', { style: 'font-weight: bold; color: #10b981;' }, row.concept_count)
-  },
-  {
-    title: '论断',
-    key: 'claim_count',
-    width: 80,
-    align: 'center' as const,
-    render: (row: any) => h('span', { style: 'font-weight: bold; color: #f59e0b;' }, row.claim_count)
-  },
-  {
-    title: '状态',
-    key: 'processing_status',
-    width: 100,
-    render: (row: any) => {
-      const type = row.processing_status === 'completed' ? 'success' : 'warning'
-      const label = row.processing_status === 'completed' ? '已完成' : '待处理'
-      return h(NTag, { type }, () => label)
-    }
-  },
-  {
-    title: '上传时间',
-    key: 'created_at',
-    width: 180,
-    render: (row: any) => formatTime(row.created_at)
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 200,
-    fixed: 'right' as const,
-    render: (row: any) => {
-      return h('div', { style: 'display: flex; gap: 8px;' }, [
-        h(
-          NButton,
-          {
-            size: 'small',
-            type: 'primary',
-            text: true,
-            onClick: () => handleViewDocument(row)
-          },
-          { default: () => '查看' }
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            type: 'info',
-            text: true,
-            onClick: () => handleViewGraph(row)
-          },
-          { default: () => '图谱' }
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            type: 'error',
-            text: true,
-            onClick: () => handleDeleteDocument(row)
-          },
-          { default: () => '删除' }
-        )
-      ])
-    }
-  }
-])
-
-// Mount
 loadDocuments()
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .documents-page {
-  padding: 24px;
-  background: #f5f7fa;
-  min-height: 100vh;
+  padding: 28px 40px; min-height: calc(100vh - 64px); position: relative;
+
+  .page-bg {
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(96,165,250,0.05) 0%, transparent 50%);
+    pointer-events: none; z-index: 0;
+  }
+
+  > * { position: relative; z-index: 1; }
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 24px; padding: 24px 32px;
+
+  .page-title { font-size: 30px; font-weight: 800; margin: 0 0 6px; }
+  .page-subtitle { font-size: 14px; color: var(--color-text-muted); margin: 0; }
+  .header-actions { display: flex; gap: 10px; }
 }
 
-.header-content {
-  flex: 1;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  background: linear-gradient(120deg, #3b82f6, #1e40af);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: #999;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 24px; }
 
 .stat-card {
-  display: flex;
-  gap: 16px;
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
+  display: flex; gap: 16px; padding: 20px;
+  background: var(--color-surface); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm); border: 1px solid var(--color-border-light);
+  transition: all var(--transition-base);
 
-.stat-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  color: white;
-  flex-shrink: 0;
-}
+  &:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
-.stat-content {
-  flex: 1;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 8px;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1f2937;
+  .stat-icon { width: 54px; height: 54px; border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+  .stat-content { flex: 1; .stat-label { font-size: 12px; color: var(--color-text-muted); margin-bottom: 6px; } .stat-value { font-size: 24px; font-weight: 800; color: var(--color-text); } }
 }
 
 .documents-card {
-  background: white;
+  .card-header { display: flex; justify-content: space-between; align-items: center; h3 { margin: 0; font-weight: 700; } }
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.card-header h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.empty-state {
-  padding: 60px 20px;
-  text-align: center;
-}
+.empty-state { padding: 60px 20px; text-align: center; }
 
 .document-detail {
-  padding: 20px 0;
-}
-
-.info-item {
-  display: flex;
-  gap: 12px;
-}
-
-.info-item .label {
-  font-weight: 600;
-  color: #666;
-  min-width: 80px;
-}
-
-.info-item .value {
-  color: #333;
-}
-
-.stat-box {
-  padding: 20px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.stat-box .stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #3b82f6;
-  margin-bottom: 8px;
-}
-
-.stat-box .stat-label {
-  font-size: 12px;
-  color: #999;
-}
-
-.theme-item {
-  margin-bottom: 12px;
-}
-
-.theme-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.theme-summary {
-  margin: 8px 0 0 0;
-  color: #666;
-  line-height: 1.5;
-}
-
-.empty-message {
-  padding: 20px;
-  text-align: center;
-  color: #999;
-}
-
-.preview-container {
-  margin-top: 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f8fafc;
-}
-
-.preview-frame {
-  width: 100%;
-  height: 620px;
-  border: none;
-  background: white;
+  padding: 8px 0;
+  .info-item { display: flex; gap: 12px; align-items: center; .label { font-weight: 600; color: var(--color-text-secondary); min-width: 80px; } }
+  .stat-box { padding: 18px; border-radius: var(--radius-lg); background: var(--color-bg-alt); text-align: center; .sv { font-size: 26px; font-weight: 800; color: #3b82f6; } .sl { font-size: 12px; color: var(--color-text-muted); margin-top: 6px; } }
+  .theme-header { display: flex; align-items: center; gap: 12px; .theme-label { font-weight: 600; flex: 1; } .theme-count { font-size: 13px; color: var(--color-text-muted); } }
+  .theme-summary { margin: 8px 0 0; color: var(--color-text-secondary); line-height: 1.5; }
+  .preview-container { margin-top: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+  .preview-frame { width: 100%; height: 600px; border: none; background: #fff; }
+  .empty-msg { padding: 24px; text-align: center; color: var(--color-text-muted); }
 }
 </style>

@@ -90,9 +90,28 @@
         </div>
 
         <n-divider>文档预览</n-divider>
-        <div v-if="canPreview" class="preview-container">
+        <!-- PDF Preview -->
+        <div v-if="isPDF" class="preview-container">
           <iframe :src="previewUrl" class="preview-frame" title="预览" />
         </div>
+        <!-- Markdown Preview -->
+        <div v-else-if="isMarkdown" class="preview-container">
+          <n-spin :show="previewLoading" />
+          <div v-if="!previewLoading && previewContent" class="markdown-body" v-html="previewContent"></div>
+          <div v-else-if="!previewLoading && previewError" class="empty-msg">{{ previewError }}</div>
+        </div>
+        <!-- TXT Preview -->
+        <div v-else-if="isTXT" class="preview-container">
+          <n-spin :show="previewLoading" />
+          <pre v-if="!previewLoading && previewContent" class="txt-body">{{ previewContent }}</pre>
+          <div v-else-if="!previewLoading && previewError" class="empty-msg">{{ previewError }}</div>
+        </div>
+        <!-- Word Preview (attempt iframe) -->
+        <div v-else-if="isWord" class="preview-container">
+          <iframe :src="previewUrl" class="preview-frame" title="预览" />
+          <div class="preview-note">💡 如无法在线预览 Word 文档，可<a :href="previewUrl" download>点击下载</a>后查看</div>
+        </div>
+        <!-- Unsupported -->
         <div v-else class="empty-msg">当前文件类型暂不支持在线预览</div>
       </div>
     </n-modal>
@@ -102,12 +121,14 @@
 <script setup lang="ts">
 import { ref, computed, h } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMessage, NButton, NTag, NIcon } from 'naive-ui'
+import { useMessage, useDialog, NButton, NTag, NIcon, NSpin } from 'naive-ui'
 import { RefreshOutline, CloudUploadOutline, DocumentTextOutline, CheckmarkCircleOutline, HourglassOutline } from '@vicons/ionicons5'
-import { listDocuments, getDocumentDetail, getDocumentFileUrl, type DocumentListResponse, type DocumentDetail } from '@/api/services'
+import { listDocuments, getDocumentDetail, getDocumentFileUrl, deleteDocument, API_BASE, type DocumentListResponse, type DocumentDetail } from '@/api/services'
+import { marked } from 'marked'
 
 const router = useRouter()
 const message = useMessage()
+const dialog = useDialog()
 
 const loading = ref(false)
 const documents = ref<DocumentListResponse['documents']>([])
@@ -117,7 +138,19 @@ const showDetailModal = ref(false)
 const selectedDocument = ref<any>(null)
 const documentDetail = ref<DocumentDetail | null>(null)
 const previewUrl = computed(() => selectedDocument.value ? getDocumentFileUrl(selectedDocument.value.id) : '')
-const canPreview = computed(() => documentDetail.value && (documentDetail.value.mime?.includes('pdf') || documentDetail.value.kind === 'pdf'))
+
+// Preview state for non-PDF formats
+const previewLoading = ref(false)
+const previewContent = ref('')
+const previewError = ref('')
+
+// Document type helpers
+const docKind = computed(() => documentDetail.value?.kind?.toLowerCase() || '')
+const isPDF = computed(() => docKind.value === 'pdf')
+const isMarkdown = computed(() => docKind.value === 'md' || docKind.value === 'markdown')
+const isTXT = computed(() => docKind.value === 'txt')
+const isWord = computed(() => docKind.value === 'word' || docKind.value === 'doc' || docKind.value === 'docx')
+const canPreview = computed(() => isPDF.value || isMarkdown.value || isTXT.value || isWord.value)
 
 const totalDocuments = computed(() => documents.value.length)
 const completedDocuments = computed(() => documents.value.filter(d => d.processing_status === 'completed').length)
@@ -156,7 +189,62 @@ const getKindColor = (k: string) => ({ pdf: 'error', md: 'info', txt: 'warning',
 
 const handleViewDocument = async (doc: any) => {
   selectedDocument.value = doc; showDetailModal.value = true
-  try { documentDetail.value = await getDocumentDetail(doc.id) } catch (e: any) { message.error('加载详情失败') }
+  // Reset preview state
+  previewLoading.value = false
+  previewContent.value = ''
+  previewError.value = ''
+  try {
+    documentDetail.value = await getDocumentDetail(doc.id)
+    // Fetch text content for Markdown and TXT previews
+    const kind = documentDetail.value?.kind?.toLowerCase()
+    if (kind === 'md' || kind === 'markdown' || kind === 'txt') {
+      await loadTextPreview(doc.id, kind)
+    }
+  } catch (e: any) { message.error('加载详情失败') }
+}
+
+const loadTextPreview = async (docId: string, kind: string) => {
+  previewLoading.value = true
+  previewError.value = ''
+  previewContent.value = ''
+  try {
+    const url = `${API_BASE}/uploads/${docId}/file`
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const text = await response.text()
+    if (kind === 'md' || kind === 'markdown') {
+      previewContent.value = await marked.parse(text)
+    } else {
+      previewContent.value = text
+    }
+  } catch (e: any) {
+    previewError.value = '预览加载失败: ' + (e.message || '未知错误')
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+const handleDeleteDocument = (doc: any) => {
+  dialog.warning({
+    title: '确认删除',
+    content: `确定要删除文档 "${doc.filename}" 吗？此操作将同时删除：\n• 上传目录中的原始文件\n• 该文档的图谱节点及所有关联边\n• 被孤立（无边连接）的节点\n\n此操作不可撤销！`,
+    positiveText: '确认删除',
+    negativeText: '取消',
+    positiveButtonProps: { type: 'error' as const },
+    onPositiveClick: async () => {
+      try {
+        const result = await deleteDocument(doc.id)
+        message.success(
+          `已删除 "${result.filename}"：文件${result.file_deleted ? '已' : '未'}删除，` +
+          `${result.edges_deleted} 条边、${result.orphan_nodes_deleted} 个孤立节点已清理`
+        )
+        await loadDocuments()
+      } catch (e: any) {
+        const errMsg = e?.response?.data?.detail || e?.message || '未知错误'
+        message.error('删除失败: ' + errMsg)
+      }
+    }
+  })
 }
 
 const columns = [
@@ -167,9 +255,10 @@ const columns = [
   { title: '概念', key: 'concept_count', width: 80, align: 'center' as const, render: (r: any) => h('span', { style: 'font-weight:700;color:#10b981' }, r.concept_count) },
   { title: '状态', key: 'processing_status', width: 90, render: (r: any) => h(NTag, { type: r.processing_status === 'completed' ? 'success' : 'warning' }, () => r.processing_status === 'completed' ? '已完成' : '待处理') },
   { title: '上传时间', key: 'created_at', width: 170, render: (r: any) => formatTime(r.created_at) },
-  { title: '操作', key: 'actions', width: 200, fixed: 'right' as const, render: (r: any) => h('div', { style: 'display:flex;gap:8px' }, [
+  { title: '操作', key: 'actions', width: 260, fixed: 'right' as const, render: (r: any) => h('div', { style: 'display:flex;gap:8px' }, [
     h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => handleViewDocument(r) }, () => '查看'),
-    h(NButton, { size: 'small', type: 'info', text: true, onClick: () => router.push(`/graph?doc_id=${r.id}`) }, () => '图谱')
+    h(NButton, { size: 'small', type: 'info', text: true, onClick: () => router.push(`/graph?doc_id=${r.id}`) }, () => '图谱'),
+    h(NButton, { size: 'small', type: 'error', text: true, onClick: () => handleDeleteDocument(r) }, () => '删除')
   ]) }
 ]
 
@@ -225,8 +314,38 @@ loadDocuments()
   .stat-box { padding: 18px; border-radius: var(--radius-lg); background: var(--color-bg-alt); text-align: center; .sv { font-size: 26px; font-weight: 800; color: #3b82f6; } .sl { font-size: 12px; color: var(--color-text-muted); margin-top: 6px; } }
   .theme-header { display: flex; align-items: center; gap: 12px; .theme-label { font-weight: 600; flex: 1; } .theme-count { font-size: 13px; color: var(--color-text-muted); } }
   .theme-summary { margin: 8px 0 0; color: var(--color-text-secondary); line-height: 1.5; }
-  .preview-container { margin-top: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+  .preview-container { margin-top: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; position: relative; min-height: 200px; }
   .preview-frame { width: 100%; height: 600px; border: none; background: #fff; }
   .empty-msg { padding: 24px; text-align: center; color: var(--color-text-muted); }
+  .markdown-body {
+    padding: 24px 28px; max-height: 600px; overflow-y: auto; background: #fff; color: #1f2937; line-height: 1.75; font-size: 15px;
+    h1 { font-size: 1.8em; font-weight: 700; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin: 24px 0 16px; }
+    h2 { font-size: 1.5em; font-weight: 700; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin: 20px 0 12px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin: 16px 0 10px; }
+    p { margin: 8px 0; }
+    ul, ol { padding-left: 24px; margin: 8px 0; li { margin: 4px 0; } }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'Fira Code', monospace; }
+    pre { background: #1f2937; color: #e5e7eb; padding: 16px 20px; border-radius: 8px; overflow-x: auto; margin: 12px 0;
+      code { background: none; padding: 0; color: inherit; }
+    }
+    blockquote { border-left: 4px solid #3b82f6; padding: 8px 16px; margin: 12px 0; background: #f0f7ff; color: #374151; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0;
+      th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+      th { background: #f9fafb; font-weight: 600; }
+    }
+    a { color: #3b82f6; text-decoration: underline;
+      &:hover { color: #2563eb; }
+    }
+    strong { font-weight: 700; color: #111827; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
+  }
+  .txt-body {
+    padding: 20px 24px; max-height: 600px; overflow-y: auto; background: #fafbfc; color: #1f2937;
+    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; font-size: 14px; line-height: 1.7;
+    white-space: pre-wrap; word-break: break-word; margin: 0; border: none;
+  }
+  .preview-note { padding: 10px 16px; background: #fef3c7; color: #92400e; font-size: 13px; border-top: 1px solid #fcd34d;
+    a { color: #3b82f6; font-weight: 600; }
+  }
 }
 </style>

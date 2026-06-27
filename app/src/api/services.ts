@@ -263,6 +263,16 @@ export const getDocumentDetail = (documentId: string): Promise<DocumentDetail> =
 // Get file download/preview URL for embedding in viewer
 export const getDocumentFileUrl = (documentId: string): string => `${API_BASE}/uploads/${documentId}/file`
 
+export const deleteDocument = (documentId: string): Promise<{
+  success: boolean
+  document_id: string
+  filename: string
+  file_deleted: boolean
+  edges_deleted: number
+  orphan_nodes_deleted: number
+}> =>
+  api.delete(`/uploads/${documentId}`)
+
 // Graph
 export const getGraphData = (limit: number = 500): Promise<any> =>
   api.get('/graph/visualize', {

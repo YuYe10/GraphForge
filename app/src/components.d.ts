@@ -8,6 +8,8 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppContent: typeof import('./components/AppContent.vue')['default']
+    CommandPalette: typeof import('./components/CommandPalette.vue')['default']
+    EmptyState: typeof import('./components/EmptyState.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
     NAvatar: typeof import('naive-ui')['NAvatar']
     NBadge: typeof import('naive-ui')['NBadge']

@@ -117,16 +117,20 @@
 
     <!-- Global Processing Floater -->
     <processing-floater />
+
+    <!-- Command Palette (Ctrl+K) -->
+    <CommandPalette v-model:visible="showCommandPalette" />
   </n-layout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useProcessingStore } from '@/stores/processing'
 import ProcessingFloater from '@/components/ProcessingFloater.vue'
+import CommandPalette from '@/components/CommandPalette.vue'
 import {
   CubeOutline, GlobeOutline, NotificationsOutline,
   SearchOutline, SunnyOutline, MoonOutline,
@@ -143,6 +147,20 @@ const processingStore = useProcessingStore()
 
 const activeKey = ref(route.path)
 const themeMode = ref(localStorage.getItem('graphforge-theme') || 'light')
+const showCommandPalette = ref(false)
+
+// Global keyboard shortcuts
+const handleGlobalKeydown = (e: KeyboardEvent) => {
+  // Ctrl+K / Cmd+K → Command Palette
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault()
+    showCommandPalette.value = !showCommandPalette.value
+  }
+  // Escape → Close palette
+  if (e.key === 'Escape' && showCommandPalette.value) {
+    showCommandPalette.value = false
+  }
+}
 
 const toggleTheme = () => {
   themeMode.value = themeMode.value === 'dark' ? 'light' : 'dark'
@@ -210,6 +228,14 @@ const handleUserMenuSelect = (key: string) => {
 watch(() => route.path, (newPath) => {
   activeKey.value = newPath
 }, { immediate: true })
+
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
+})
 </script>
 
 <style lang="scss" scoped>

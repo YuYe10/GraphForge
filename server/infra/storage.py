@@ -54,3 +54,22 @@ class Storage:
             return str(file_path)
         return None
 
+    def delete_file(self, file_path: str) -> bool:
+        """
+        Delete a file from storage.
+
+        Args:
+            file_path: Relative or absolute path to the file.
+
+        Returns:
+            True if the file was deleted, False if it was not found.
+        """
+        path = Path(file_path)
+        if not path.is_absolute():
+            path = self.base_dir / file_path
+
+        if path.exists() and path.is_file():
+            path.unlink()
+            return True
+        return False
+

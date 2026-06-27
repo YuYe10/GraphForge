@@ -625,14 +625,14 @@ async def get_concept_graph(
 async def get_graph_stats():
     """Get knowledge graph statistics."""
     try:
-        # Get total counts
+        # Get total counts (use OPTIONAL MATCH to handle empty graphs)
         stats_query = """
         MATCH (d:Document)
         WITH count(d) as totalDocs
-        MATCH (c:Concept)
+        OPTIONAL MATCH (c:Concept)
         WITH totalDocs, count(c) as totalConcepts
-        MATCH ()-[r]->()
-        RETURN 
+        OPTIONAL MATCH ()-[r]->()
+        RETURN
             totalDocs,
             totalConcepts,
             count(r) as totalRelations

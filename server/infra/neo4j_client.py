@@ -37,10 +37,11 @@ class Neo4jClient:
                     settings.neo4j_uri,
                     auth=(settings.neo4j_user, settings.neo4j_pass)
                 )
-                # Verify connection by attempting a simple query
+                # Verify connection & identify current user
                 with self.driver.session() as session:
-                    session.run("RETURN 1")
-                print(f"✅ Neo4j connection established (attempt {attempt + 1})")
+                    result = session.run("SHOW CURRENT USER")
+                    current_user = result.single()["user"]
+                print(f"✅ Neo4j connected as '{current_user}' @ {settings.neo4j_uri} (attempt {attempt + 1})")
                 return
             except (ServiceUnavailable, OSError, Exception) as e:
                 # 对于认证错误等非连接问题，直接抛出
@@ -548,6 +549,74 @@ class Neo4jClient:
         })
         return len(result) > 0
     
+    def delete_document(self, doc_id: str) -> dict:
+        """
+        Delete a Document node and all its relationships,
+        then recursively delete orphan nodes that have no remaining edges.
+
+        Args:
+            doc_id: Document ID to delete
+
+        Returns:
+            Dict with deletion statistics:
+                - edge_count: number of edges the document had
+                - orphan_nodes_deleted: number of orphan nodes recursively deleted
+        """
+        # Count relationships for the document before deletion
+        info_query = """
+        MATCH (d:Document {id: $doc_id})
+        OPTIONAL MATCH (d)-[r]-()
+        RETURN count(DISTINCT r) as edge_count
+        """
+        info = self.execute_query(info_query, {"doc_id": doc_id})
+        edge_count = info[0]["edge_count"] if info else 0
+
+        # Delete the document and all its relationships
+        delete_query = """
+        MATCH (d:Document {id: $doc_id})
+        DETACH DELETE d
+        """
+        self.execute_query(delete_query, {"doc_id": doc_id})
+
+        # Recursively delete orphaned nodes (nodes with no remaining edges)
+        orphan_count = self._delete_orphan_nodes()
+
+        return {
+            "edge_count": edge_count,
+            "orphan_nodes_deleted": orphan_count
+        }
+
+    def _delete_orphan_nodes(self) -> int:
+        """
+        Recursively delete nodes that have no relationships.
+        Excludes system/structural node types (Topic, RuntimeConfig)
+        that should persist even without edges.
+
+        Returns:
+            Total number of orphan nodes deleted across all rounds.
+        """
+        total_deleted = 0
+        max_rounds = 20  # Safety limit to prevent infinite loops
+
+        for _ in range(max_rounds):
+            delete_query = """
+            MATCH (n)
+            WHERE NOT (n)--()
+              AND NOT n:Topic
+              AND NOT n:RuntimeConfig
+            DETACH DELETE n
+            RETURN count(n) as deleted_count
+            """
+            result = self.execute_query(delete_query)
+
+            deleted_this_round = result[0]["deleted_count"] if result else 0
+            if deleted_this_round == 0:
+                break
+
+            total_deleted += deleted_this_round
+
+        return total_deleted
+
     def link_concept_to_topic(self, concept_name: str, topic_name: str,
                               page: Optional[int] = None,
                               offset: Optional[List[int]] = None,

@@ -4,12 +4,12 @@ services:
     image: neo4j:5.26-community
     container_name: gf-neo4j
     environment:
-      - NEO4J_AUTH=neo4j/neo4j1234
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASS:-neo4j1234}
       - NEO4J_PLUGINS=["apoc", "graph-data-science"]
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "${NEO4J_HTTP_PORT:-7474}:7474"  # HTTP
+      - "${NEO4J_BOLT_PORT:-7687}:7687"  # Bolt
     volumes:
       - ./data/neo4j:/data
       - ./data/neo4j/logs:/logs
@@ -17,10 +17,11 @@ services:
       - ./data/neo4j/plugins:/plugins
       - ./server/infra/schema.cypher:/docker-entrypoint-initdb.d/init.cypher:ro
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo4j1234", "RETURN 1"]
+      test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER:-neo4j}", "-p", "${NEO4J_PASS:-neo4j1234}", "RETURN 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     restart: unless-stopped
     networks:
       - graphforge

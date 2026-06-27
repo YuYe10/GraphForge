@@ -441,6 +441,90 @@ async def download_document_file(document_id: str):
     )
 
 
+@router.delete("/{document_id}")
+async def delete_document(document_id: str):
+    """
+    Delete a document, its uploaded file, and all associated graph data.
+
+    This endpoint:
+    1. Removes the physical file from uploads/
+    2. Deletes the Document node and all its relationships in Neo4j
+    3. Recursively deletes orphan nodes (nodes with no remaining edges)
+       that were left disconnected after document removal
+
+    Returns:
+        {
+            "success": true,
+            "document_id": "...",
+            "filename": "...",
+            "file_deleted": true/false,
+            "edges_deleted": N,
+            "orphan_nodes_deleted": N
+        }
+    """
+    # Fetch document metadata from Neo4j (for filename and file path)
+    result = neo4j_client.execute_query(
+        "MATCH (d:Document {id: $doc_id}) RETURN d",
+        {"doc_id": document_id}
+    )
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc_data = result[0]["d"]
+
+    # Resolve file path from meta
+    raw_meta = doc_data.get("meta")
+    meta: dict = {}
+    if isinstance(raw_meta, dict):
+        meta = raw_meta
+    elif isinstance(raw_meta, str):
+        try:
+            parsed = json.loads(raw_meta)
+            if isinstance(parsed, dict):
+                meta = parsed
+            elif isinstance(parsed, str):  # double-encoded
+                meta = json.loads(parsed)
+        except Exception:
+            meta = {}
+
+    file_path = meta.get("path") if isinstance(meta, dict) else None
+
+    # 1. Delete the physical file from storage
+    file_deleted = False
+    if file_path:
+        try:
+            file_deleted = storage.delete_file(file_path)
+        except Exception as e:
+            print(f"Warning: Failed to delete file {file_path}: {e}")
+
+    # Also try to delete by checksum as a fallback
+    if not file_deleted:
+        checksum = doc_data.get("checksum")
+        if checksum:
+            alt_path = storage.file_exists(checksum)
+            if alt_path:
+                try:
+                    file_deleted = storage.delete_file(alt_path)
+                except Exception as e:
+                    print(f"Warning: Failed to delete alt file {alt_path}: {e}")
+
+    # 2. Delete the Document node + all its relationships
+    # 3. Recursively delete orphan nodes
+    delete_result = neo4j_client.delete_document(document_id)
+
+    filename = doc_data.get("filename", "unknown")
+
+    return {
+        "success": True,
+        "document_id": document_id,
+        "filename": filename,
+        "file_deleted": file_deleted,
+        "edges_deleted": delete_result["edge_count"],
+        "orphan_nodes_deleted": delete_result["orphan_nodes_deleted"]
+    }
+
+
 def _update_upload_status(job_id: str, status: str, progress: int, message: str, **kwargs):
     """Update job status (supports both Redis and fallback storage)."""
     # Try to update via RQ if we're in a worker context
@@ -648,7 +732,10 @@ def process_document_background(
             result_data = {"stats": stats}
             if all_insights:
                 result_data["insights"] = all_insights[:10]  # 返回前10条洞察
-            
+
+            # Mark document as completed in Neo4j
+            neo4j_client.mark_document_processed(doc_id, "completed")
+
             _update_upload_status(job_id, "completed", 100, "AI智能分析完成！", documentId=doc_id, **result_data)
         
         else:
@@ -705,6 +792,8 @@ def process_document_background(
                 "textLength": len(full_text),
                 "mode": "traditional"
             }
+            # Mark document as completed in Neo4j
+            neo4j_client.mark_document_processed(doc_id, "completed")
             _update_upload_status(job_id, "completed", 100, "知识图谱构建完成！", documentId=doc_id, stats=stats)
         
     except Exception as e:

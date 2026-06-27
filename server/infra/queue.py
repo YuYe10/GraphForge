@@ -42,8 +42,10 @@ def _get_connection_pool() -> redis.ConnectionPool:
             socket_timeout=settings.redis_socket_timeout,
             socket_connect_timeout=settings.redis_socket_connect_timeout,
             retry_on_timeout=settings.redis_retry_on_timeout,
-            health_check_interval=settings.redis_health_check_interval,
-            decode_responses=True,
+            # 注意：health_check_interval 在 redis-py 5.x 中可能与 CLIENT SETINFO
+            # 产生递归调用。改用应用层 ping 检测。decode_responses=False，
+            # 因为 RQ 需要二进制协议存储 pickle 数据。
+            decode_responses=False,
         )
         logger.info("Redis 连接池已创建: %s (max_connections=%d)", redis_url, settings.redis_max_connections)
     return _pool
@@ -116,9 +118,14 @@ class RedisQueue:
 
         try:
             pong = self.redis_conn.ping()
-            info = self.redis_conn.info(section="server")
-            memory = self.redis_conn.info(section="memory")
-            stats = self.redis_conn.info(section="stats")
+
+            # info() 返回 bytes key，需要解码
+            def _decode_info(raw: dict) -> dict:
+                return {k.decode() if isinstance(k, bytes) else k: v for k, v in raw.items()}
+
+            info = _decode_info(self.redis_conn.info(section="server"))
+            memory = _decode_info(self.redis_conn.info(section="memory"))
+            stats = _decode_info(self.redis_conn.info(section="stats"))
 
             result.update({
                 "connected": pong,
@@ -131,8 +138,8 @@ class RedisQueue:
                 "keyspace_hits": stats.get("keyspace_hits", 0),
                 "keyspace_misses": stats.get("keyspace_misses", 0),
                 "hit_rate": round(
-                    stats.get("keyspace_hits", 0) / max(stats.get("keyspace_hits", 0) + stats.get("keyspace_misses", 0), 1) * 100, 1
-                ) if (stats.get("keyspace_hits", 0) + stats.get("keyspace_misses", 0)) > 0 else 0,
+                    int(stats.get("keyspace_hits", 0)) / max(int(stats.get("keyspace_hits", 0)) + int(stats.get("keyspace_misses", 0)), 1) * 100, 1
+                ) if (int(stats.get("keyspace_hits", 0)) + int(stats.get("keyspace_misses", 0))) > 0 else 0,
             })
 
             # 统计当前命名空间下的 key 数量
@@ -234,11 +241,12 @@ class RedisQueue:
     # ── 缓存辅助方法 ────────────────────────────────────────────
 
     def cache_get(self, key: str) -> Optional[str]:
-        """从缓存读取（带命名空间前缀）。"""
+        """从缓存读取（带命名空间前缀，自动解码 bytes）。"""
         if not self.is_connected():
             return None
         try:
-            return self.redis_conn.get(_make_key(key))
+            val = self.redis_conn.get(_make_key(key))
+            return val.decode() if isinstance(val, bytes) else val
         except RedisError:
             return None
 

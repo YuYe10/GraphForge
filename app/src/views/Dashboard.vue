@@ -213,7 +213,7 @@ const graphDensity = computed(() => {
 
 // Stat cards config
 const statCards = computed(() => [
-  { label: '文档总数', value: stats.value.totalDocuments, suffix: '', icon: DocumentTextOutline, color: '#d4af37', bg: 'linear-gradient(135deg, #d4af37, #c9a668)', desc: 'PDF · Markdown', trendColor: '#10b981', trend: true },
+  { label: '文档总数', value: stats.value.totalDocuments, suffix: '', icon: DocumentTextOutline, color: '#d4af37', bg: 'linear-gradient(135deg, #d4af37, #c9a668)', desc: 'PDF · Markdown · TXT · Word', trendColor: '#10b981', trend: true },
   { label: '概念节点', value: stats.value.totalConcepts, suffix: '', icon: BulbOutline, color: '#c9a668', bg: 'linear-gradient(135deg, #c9a668, #b8860b)', desc: '知识体系', trendColor: '#10b981', trend: true },
   { label: '关系连接', value: stats.value.totalRelations, suffix: '', icon: GitNetworkOutline, color: '#b8860b', bg: 'linear-gradient(135deg, #b8860b, #9a7509)', desc: '关联网络', trendColor: '#10b981', trend: true },
   { label: '图谱密度', value: graphDensity.value, suffix: '%', icon: AnalyticsOutline, color: '#daa520', bg: 'linear-gradient(135deg, #daa520, #c9a668)', desc: '持续增长', trendColor: '#10b981', trend: true }

@@ -240,6 +240,29 @@ body {
 // Comprehensive Animation Library
 // ============================================================
 
+// Ripple effect keyframes (used by v-ripple directive)
+@keyframes ripple-effect {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+// Glow pulse for interactive elements
+@keyframes interactive-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(194, 164, 116, 0); }
+  50% { box-shadow: 0 0 0 8px rgba(194, 164, 116, 0.08); }
+}
+
+// Gentle attention pulse
+@keyframes attention {
+  0%, 100% { transform: scale(1); }
+  10% { transform: scale(1.03); }
+  20% { transform: scale(1); }
+  30% { transform: scale(1.03); }
+  40% { transform: scale(1); }
+}
+
 // Fade animations
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }

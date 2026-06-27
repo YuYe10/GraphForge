@@ -1,4 +1,7 @@
 <template>
+  <!-- Scroll Progress Bar -->
+  <div class="scroll-progress" :style="{ width: scrollProgress + '%' }"></div>
+
   <n-config-provider :locale="naiveLocale" :date-locale="naiveDateLocale" :theme="naiveTheme">
     <n-global-style />
     <n-message-provider>
@@ -47,11 +50,23 @@ watch(themeMode, (mode) => {
 const naiveLocale = computed(() => locale.value === 'zh' ? zhCN : enUS)
 const naiveDateLocale = computed(() => locale.value === 'zh' ? dateZhCN : dateEnUS)
 
+// Scroll progress
+const scrollProgress = ref(0)
+let scrollHandler = () => {}
+
 // Background particles
 let particlesCanvas: HTMLCanvasElement | null = null
 let particlesAnimationId = 0
 
 onMounted(() => {
+  // Scroll progress
+  scrollHandler = () => {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight
+    scrollProgress.value = docHeight > 0 ? Math.min((scrollTop / docHeight) * 100, 100) : 0
+  }
+  window.addEventListener('scroll', scrollHandler, { passive: true })
+
   initParticles()
 })
 
@@ -160,6 +175,29 @@ function initParticles() {
 // GraphForge App — Global Component Styles
 // International Design Excellence
 // ============================================================
+
+// --- Scroll Progress Bar ---
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, var(--color-primary-light), var(--color-accent), #f59e0b, #10b981);
+  background-size: 300% 100%;
+  animation: gradientFlow 4s linear infinite;
+  z-index: 10000;
+  transition: width 0.15s linear;
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px rgba(194, 164, 116, 0.4);
+}
+
+// --- Ripple Effect (used by v-ripple directive) ---
+@keyframes ripple-effect {
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
 
 // --- Theme Variables (Dark Mode) ---
 html.dark {

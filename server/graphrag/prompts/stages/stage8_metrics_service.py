@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, List
 
 from graphrag.config import get_config
-from infra.neo4j_client import Neo4jClient
+from server.infra.neo4j_client import Neo4jClient
 
 logger = logging.getLogger("graphrag.stage8")
 

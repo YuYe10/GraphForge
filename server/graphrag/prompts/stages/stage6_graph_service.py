@@ -7,7 +7,7 @@
 
 import logging
 from typing import Dict, Any, List
-from infra.neo4j_client import Neo4jClient
+from server.infra.neo4j_client import Neo4jClient
 from graphrag.utils.domain_filter import get_domain_filter
 
 logger = logging.getLogger("graphrag.stage6")

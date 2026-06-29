@@ -1,8 +1,7 @@
 """
-LunarInsight GraphRAG Module
+GraphForge GraphRAG Module
 
 基于 Neo4j GraphRAG 的知识图谱构建与检索模块
-遵循 .cursor/rules/knowledge-graph-algorithm.mdc 规范
 
 架构说明:
 - stages/     - 8 个构建阶段的实现

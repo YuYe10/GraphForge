@@ -10,7 +10,7 @@ from rq import Queue, Connection, Worker
 from rq.job import Job
 from rq import get_current_job
 
-from infra.config import settings
+from server.infra.config import settings
 
 logger = logging.getLogger(__name__)
 

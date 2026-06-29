@@ -12,10 +12,10 @@ import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from infra.neo4j_client import neo4j_client
+from server.infra.neo4j_client import neo4j_client
 from graphrag.models.theme import Theme
 from graphrag.config import get_config
-from infra.ai_providers import AIProviderFactory, BaseAIClient
+from server.infra.ai_providers import AIProviderFactory, BaseAIClient
 from services.config_service import config_service
 from graphrag.utils.embedding import cosine_similarity
 

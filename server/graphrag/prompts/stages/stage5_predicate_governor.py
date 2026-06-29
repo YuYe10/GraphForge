@@ -275,7 +275,7 @@ class PredicateGovernor:
         """
         logger.info(f"开始批量规范化: doc_id={doc_id}")
         
-        from infra.neo4j_client import neo4j_client
+        from server.infra.neo4j_client import neo4j_client
         
         # 查询文档相关的所有关系（只处理尚未治理的）
         query = """
@@ -467,7 +467,7 @@ class PredicateGovernor:
         Returns:
             待复核关系列表
         """
-        from infra.neo4j_client import neo4j_client
+        from server.infra.neo4j_client import neo4j_client
         
         query = """
         MATCH ()-[r]->()

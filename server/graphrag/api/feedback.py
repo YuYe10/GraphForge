@@ -16,7 +16,7 @@ from graphrag.models.feedback import (
     CorrectionRequest,
     UnlinkRequest
 )
-from infra.neo4j_client import neo4j_client
+from server.infra.neo4j_client import neo4j_client
 
 logger = logging.getLogger("graphrag.api.feedback")
 

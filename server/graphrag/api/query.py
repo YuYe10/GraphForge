@@ -104,7 +104,7 @@ async def list_themes(doc_id: Optional[str] = None):
         doc_id: 可选，过滤特定文档的主题
     """
     try:
-        from infra.neo4j_client import Neo4jClient
+        from server.infra.neo4j_client import Neo4jClient
         
         neo4j_client = Neo4jClient()
         neo4j_client.initialize()
@@ -176,7 +176,7 @@ async def get_theme_detail(theme_id: str):
         theme_id: 主题 ID
     """
     try:
-        from infra.neo4j_client import Neo4jClient
+        from server.infra.neo4j_client import Neo4jClient
         import json
         
         neo4j_client = Neo4jClient()

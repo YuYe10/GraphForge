@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from neo4j import GraphDatabase, Driver
 from neo4j.exceptions import ServiceUnavailable
-from infra.config import settings
+from server.infra.config import settings
 
 
 class Neo4jClient:

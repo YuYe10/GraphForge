@@ -19,7 +19,7 @@ from enum import Enum
 from abc import ABC, abstractmethod
 from graphrag.models.chunk import ChunkMetadata
 from graphrag.config import get_config
-from infra.ai_providers import AIProviderFactory, BaseAIClient
+from server.infra.ai_providers import AIProviderFactory, BaseAIClient
 from services.config_service import config_service
 
 logger = logging.getLogger("graphrag.stage1")

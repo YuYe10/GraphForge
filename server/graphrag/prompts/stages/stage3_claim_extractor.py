@@ -14,7 +14,7 @@ from graphrag.models.chunk import ChunkMetadata
 from graphrag.models.claim import Claim, ClaimRelation
 from graphrag.config import get_config
 from services.config_service import config_service
-from infra.ai_providers import AIProviderFactory
+from server.infra.ai_providers import AIProviderFactory
 from graphrag.utils.evidence_aligner import align_evidence
 from graphrag.utils.claim_deduplicator import deduplicate_claims, compute_text_hash
 from graphrag.utils.nli_verifier import NLIVerifier

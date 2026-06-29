@@ -2,6 +2,15 @@
 """
 验证软件工程领域知识图谱优化实施情况
 Verification script for software engineering domain knowledge graph optimization
+
+该脚本验证 GraphForge 领域优化功能的正确性，包括：
+- 配置文件验证 (ontology.yaml / predicates.yaml)
+- 领域过滤器功能验证 (Domain Filter)
+- 各处理阶段修改验证 (Stage 2/5/6)
+- 领域关键词统计与分析
+
+Usage:
+    python tests/test_domain_optimization.py
 """
 
 import sys
@@ -9,8 +18,9 @@ import os
 import json
 from pathlib import Path
 
-# Add server to path
-sys.path.insert(0, "/home/yuye/POW/server")
+# Add project server directory to Python path for module imports
+PROJECT_ROOT = Path(__file__).resolve().parent.parent  # GraphForge/server/
+sys.path.insert(0, str(PROJECT_ROOT))
 
 def verify_configurations():
     """验证配置文件修改"""
@@ -20,7 +30,7 @@ def verify_configurations():
     
     # 1. 验证 ontology.yaml
     print("\n1. 本体配置 (Ontology Configuration)")
-    ontology_path = Path("/home/yuye/POW/server/graphrag/config/ontology.yaml")
+    ontology_path = PROJECT_ROOT / "graphrag/config/ontology.yaml"
     if ontology_path.exists():
         content = ontology_path.read_text(encoding='utf-8')
         
@@ -43,7 +53,7 @@ def verify_configurations():
     
     # 2. 验证 predicates.yaml
     print("\n2. 谓词配置 (Predicate Configuration)")
-    predicates_path = Path("/home/yuye/POW/server/graphrag/config/predicates.yaml")
+    predicates_path = PROJECT_ROOT / "graphrag/config/predicates.yaml"
     if predicates_path.exists():
         content = predicates_path.read_text(encoding='utf-8')
         
@@ -119,7 +129,7 @@ def verify_stages():
     
     # Stage 2: Entity Linker
     print("\n1. Stage 2 - 实体链接 (Entity Linking)")
-    stage2_path = Path("/home/yuye/POW/server/graphrag/stages/stage2_entity_linker.py")
+    stage2_path = PROJECT_ROOT / "graphrag/stages/stage2_entity_linker.py"
     if stage2_path.exists():
         content = stage2_path.read_text(encoding='utf-8')
         checks = [
@@ -132,7 +142,7 @@ def verify_stages():
     
     # Stage 5: Predicate Governor
     print("\n2. Stage 5 - 谓词治理 (Predicate Governance)")
-    stage5_path = Path("/home/yuye/POW/server/graphrag/stages/stage5_predicate_governor.py")
+    stage5_path = PROJECT_ROOT / "graphrag/stages/stage5_predicate_governor.py"
     if stage5_path.exists():
         content = stage5_path.read_text(encoding='utf-8')
         checks = [
@@ -148,7 +158,7 @@ def verify_stages():
     
     # Stage 6: Graph Service
     print("\n3. Stage 6 - 图谱存储 (Graph Storage)")
-    stage6_path = Path("/home/yuye/POW/server/graphrag/stages/stage6_graph_service.py")
+    stage6_path = PROJECT_ROOT / "graphrag/stages/stage6_graph_service.py"
     if stage6_path.exists():
         content = stage6_path.read_text(encoding='utf-8')
         checks = [
@@ -167,7 +177,7 @@ def verify_stages():
     
     # Prompt
     print("\n4. 提示词 (Claim Extraction Prompt)")
-    prompt_path = Path("/home/yuye/POW/server/graphrag/prompts/claim_extraction.txt")
+    prompt_path = PROJECT_ROOT / "graphrag/prompts/claim_extraction.txt"
     if prompt_path.exists():
         content = prompt_path.read_text(encoding='utf-8')
         checks = [

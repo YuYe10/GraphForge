@@ -16,6 +16,8 @@ GraphForge/
 ├── README.md / README.en.md     # 项目简介与快速开始
 ├── LICENSE                      # MIT 开源协议
 ├── docker-compose.yml           # Docker 容器编排
+├── docs/
+│   └── TECHNICAL_DEEP_DIVE.md   # 🔬 技术深度解析文档
 │
 ├── server/                      # 后端服务 (Python 3.11 + FastAPI)
 │   ├── main.py                 # FastAPI 应用入口
@@ -67,6 +69,7 @@ GraphForge/
 | 项目 README (英文) | [README.en.md](README.en.md) | English version of the README |
 | Docker 编排 | [docker-compose.yml](docker-compose.yml) | 一键启动 Neo4j + Redis + 应用 |
 | 前端开发指南 | [app/DEVELOPMENT_GUIDE.md](app/DEVELOPMENT_GUIDE.md) | 前端环境搭建与开发规范 |
+| **技术深度解析** | [docs/TECHNICAL_DEEP_DIVE.md](docs/TECHNICAL_DEEP_DIVE.md) | 🔬 模块详解、事务联动、技术栈对比、大厂面试问答 |
 
 ---
 
@@ -428,6 +431,46 @@ DocumentParser → AISegmenter → TripletExtractor → EntityLinker → GraphSe
 2. 想改进文档 → 提 PR
 3. 新增功能 → 同步更新对应模块的 README
 4. 重构代码 → 检查相关文档是否需要更新
+
+---
+
+### 🔬 技术深度解析
+
+| 文档 | 路径 | 内容 |
+|------|------|------|
+| **技术深度解析文档** | [docs/TECHNICAL_DEEP_DIVE.md](docs/TECHNICAL_DEEP_DIVE.md) | 四大章节全覆盖 |
+
+> 📌 **本文档是理解 GraphForge 项目最完整的单一文档**，包含：
+
+**第一章 — 项目概述与系统架构**：系统架构全景图、三大核心事务流程（文档上传与知识抽取、GraphRAG 九阶段流水线、智能问答）的联动序列图。
+
+**第二章 — 模块深度剖析**：
+- 基础设施层 5 个模块（Neo4jClient、AIProviderFactory、RedisQueue、ConfigService、FileStorage）的类设计、关键算法和面试考察点
+- 数据模型层（Document、Graph、KnowledgeCard）的设计原则
+- 业务服务层 7 个服务（Parser → AISegmenter → Extractor → Linker → GraphService → QAService）的依赖关系和数据流
+- API 路由层 6 个路由的端点矩阵
+- GraphRAG 九阶段流水线的完整数据流图和多层过滤体系（Prompt 限定 → Domain Filter → Predicate Governor → Ontology Constraint）
+- 前端应用层的组件树、ProcessingStore 轮询机制、Cytoscape.js 5种布局
+
+**第三章 — 技术栈深度对比与选型理由**：
+- FastAPI vs Flask vs Django（附评分矩阵）
+- Neo4j vs ArangoDB vs JanusGraph
+- Vue 3 vs React vs Angular
+- Cytoscape.js vs D3.js vs AntV G6
+- RQ vs Celery
+- AI 集成架构：Factory + Strategy + Adapter 三重设计模式
+
+**第四章 — 面试问答**（大厂级别，10 题全覆盖）：
+1. 项目整体架构设计
+2. GraphRAG 是什么及如何实现
+3. 文档上传幂等性
+4. 12 种 AI 提供商统一接口设计
+5. 知识图谱数据质量保证
+6. 为什么选 Neo4j 而非 PostgreSQL 图扩展
+7. Cytoscape.js 大规模渲染性能优化
+8. 模块优化方向（含量化预期）
+9. Redis 的多场景使用
+10. 项目未来演进路线图
 
 ---
 

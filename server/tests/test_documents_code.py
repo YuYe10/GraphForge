@@ -1,9 +1,22 @@
 #!/usr/bin/env python3
-"""简单的 API 测试脚本 - 不需要启动整个服务器"""
+"""
+GraphForge 文档管理功能 - 代码验证脚本
+Code verification script for GraphForge Document Management
+
+该脚本通过静态代码分析验证文档管理相关文件的实现完整性，
+无需启动服务器或连接数据库。
+
+Usage:
+    python tests/test_documents_code.py
+"""
 
 import sys
 import ast
 from pathlib import Path
+
+# Determine project root dynamically
+PROJECT_ROOT = Path(__file__).resolve().parent.parent  # GraphForge/server/
+APP_ROOT = PROJECT_ROOT.parent / "app"  # GraphForge/app/
 
 def test_implementation():
     """测试代码实现"""
@@ -17,7 +30,7 @@ def test_implementation():
     print("\n📍 后端实现验证")
     print("-"*70)
     
-    upload_py = Path("/home/yuye/POW/server/routes/upload.py")
+    upload_py = PROJECT_ROOT / "routes/upload.py"
     if not upload_py.exists():
         print("❌ upload.py 不存在")
         return 1
@@ -42,7 +55,7 @@ def test_implementation():
     print("\n📍 前端 API 服务验证")
     print("-"*70)
     
-    services_ts = Path("/home/yuye/POW/app/vue/src/api/services.ts")
+    services_ts = APP_ROOT / "src/api/services.ts"
     if not services_ts.exists():
         print("❌ services.ts 不存在")
         return 1
@@ -65,7 +78,7 @@ def test_implementation():
     print("\n📍 前端组件验证")
     print("-"*70)
     
-    documents_vue = Path("/home/yuye/POW/app/vue/src/views/Documents.vue")
+    documents_vue = APP_ROOT / "src/views/Documents.vue"
     if not documents_vue.exists():
         print("❌ Documents.vue 不存在")
         return 1
@@ -92,7 +105,7 @@ def test_implementation():
     print("\n📍 集成验证")
     print("-"*70)
     
-    router_ts = Path("/home/yuye/POW/app/vue/src/router/index.ts")
+    router_ts = APP_ROOT / "src/router/index.ts"
     if not router_ts.exists():
         print("❌ router/index.ts 不存在")
         return 1
@@ -104,12 +117,12 @@ def test_implementation():
         "Documents 组件关联": "Documents" in router_content,
     }
     
-    main_layout = Path("/home/yuye/POW/app/vue/src/layouts/MainLayout.vue")
+    main_layout = APP_ROOT / "src/layouts/MainLayout.vue"
     if main_layout.exists():
         layout_content = main_layout.read_text()
         integration_checks["导航菜单 (文档管理)"] = "文档管理" in layout_content
     
-    dashboard = Path("/home/yuye/POW/app/vue/src/views/Dashboard.vue")
+    dashboard = APP_ROOT / "src/views/Dashboard.vue"
     if dashboard.exists():
         dash_content = dashboard.read_text()
         integration_checks["仪表板集成 (文档管理)"] = "文档管理" in dash_content
@@ -124,9 +137,9 @@ def test_implementation():
     print("-"*70)
     
     python_files = [
-        ("upload.py", "/home/yuye/POW/server/routes/upload.py"),
-        ("stage6_graph_service.py", "/home/yuye/POW/server/graphrag/stages/stage6_graph_service.py"),
-        ("stage8_metrics_service.py", "/home/yuye/POW/server/graphrag/stages/stage8_metrics_service.py"),
+        ("upload.py", str(PROJECT_ROOT / "routes/upload.py")),
+        ("stage6_graph_service.py", str(PROJECT_ROOT / "graphrag/stages/stage6_graph_service.py")),
+        ("stage8_metrics_service.py", str(PROJECT_ROOT / "graphrag/stages/stage8_metrics_service.py")),
     ]
     
     for file_name, file_path in python_files:

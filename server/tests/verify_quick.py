@@ -1,11 +1,25 @@
 #!/usr/bin/env python3
 """
-快速验证脚本 - 无需依赖
+快速验证脚本 - 无需外部依赖
 Quick Verification Script - No Dependencies Required
+
+该脚本验证 GraphForge 知识图谱优化的核心组件完整性，
+无需连接 Neo4j 或启动 FastAPI 服务器。
+检查内容包括：
+- 配置文件 (ontology.yaml / predicates.yaml) 完整性
+- 领域过滤器模块 (domain_filter.py) 的类和函数
+- 各处理阶段 (Stage 2/5/6) 的修改
+- 提示词模板 (claim_extraction.txt) 的内容
+
+Usage:
+    python tests/verify_quick.py
 """
 
 from pathlib import Path
 import re
+
+# Determine project root dynamically (GraphForge/server/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def verify_all():
     """综合验证所有优化"""
@@ -20,7 +34,7 @@ def verify_all():
     print("\n[1] 配置文件验证")
     print("-" * 70)
     
-    ontology_path = Path("/home/yuye/POW/server/graphrag/config/ontology.yaml")
+    ontology_path = PROJECT_ROOT / "graphrag/config/ontology.yaml"
     if ontology_path.exists():
         content = ontology_path.read_text(encoding='utf-8')
         entities = ["KnowledgePoint", "Content", "Document", "Question", "Timestamp"]
@@ -41,7 +55,7 @@ def verify_all():
         
         checks.append(("ontology.yaml", entity_ok and rel_ok and version_ok))
     
-    predicates_path = Path("/home/yuye/POW/server/graphrag/config/predicates.yaml")
+    predicates_path = PROJECT_ROOT / "graphrag/config/predicates.yaml"
     if predicates_path.exists():
         content = predicates_path.read_text(encoding='utf-8')
         version_ok = "2.0.0-software-engineering" in content or "software-engineering" in content
@@ -59,7 +73,7 @@ def verify_all():
     print("\n[2] 新增模块验证")
     print("-" * 70)
     
-    domain_filter_path = Path("/home/yuye/POW/server/graphrag/utils/domain_filter.py")
+    domain_filter_path = PROJECT_ROOT / "graphrag/utils/domain_filter.py"
     if domain_filter_path.exists():
         content = domain_filter_path.read_text(encoding='utf-8')
         
@@ -87,7 +101,7 @@ def verify_all():
     print("\n[3] 处理阶段修改验证")
     print("-" * 70)
     
-    stage2_path = Path("/home/yuye/POW/server/graphrag/stages/stage2_entity_linker.py")
+    stage2_path = PROJECT_ROOT / "graphrag/stages/stage2_entity_linker.py"
     if stage2_path.exists():
         content = stage2_path.read_text(encoding='utf-8')
         has_import = "from graphrag.utils.domain_filter import" in content
@@ -101,7 +115,7 @@ def verify_all():
         
         checks.append(("stage2", has_import and has_init and has_check))
     
-    stage5_path = Path("/home/yuye/POW/server/graphrag/stages/stage5_predicate_governor.py")
+    stage5_path = PROJECT_ROOT / "graphrag/stages/stage5_predicate_governor.py"
     if stage5_path.exists():
         content = stage5_path.read_text(encoding='utf-8')
         has_allowed = "ALLOWED_PREDICATES" in content
@@ -115,7 +129,7 @@ def verify_all():
         
         checks.append(("stage5", has_allowed and has_5_predicates and has_normalize))
     
-    stage6_path = Path("/home/yuye/POW/server/graphrag/stages/stage6_graph_service.py")
+    stage6_path = PROJECT_ROOT / "graphrag/stages/stage6_graph_service.py"
     if stage6_path.exists():
         content = stage6_path.read_text(encoding='utf-8')
         has_entity_types = "ALLOWED_ENTITY_TYPES" in content
@@ -135,7 +149,7 @@ def verify_all():
     print("\n[4] 提示词验证")
     print("-" * 70)
     
-    prompt_path = Path("/home/yuye/POW/server/graphrag/prompts/claim_extraction.txt")
+    prompt_path = PROJECT_ROOT / "graphrag/prompts/claim_extraction.txt"
     if prompt_path.exists():
         content = prompt_path.read_text(encoding='utf-8')
         has_domain = "软件工程" in content or "software_engineering" in content
@@ -165,7 +179,7 @@ def verify_all():
         "prompts/claim_extraction.txt",
     ]
     
-    base_path = Path("/home/yuye/POW/server/graphrag")
+    base_path = PROJECT_ROOT / "graphrag"
     existing = 0
     for file in modified_files:
         file_path = base_path / file

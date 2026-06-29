@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""完整的集成测试 - 测试文档管理功能的各个部分"""
+"""
+完整的集成测试 - 测试文档管理功能的各个部分
+Full Stack Integration Test - Document Management Feature
+
+该脚本测试文档管理功能的各个环节，需要启动 FastAPI 服务器。
+测试内容包括：
+- 文档上传与查询
+- 前端代码存在性验证
+- Neo4j 数据库操作
+
+Usage:
+    # 先启动服务器: python main.py
+    python tests/test_documents_fullstack.py
+"""
 
 import sys
 import time
@@ -7,6 +20,10 @@ import subprocess
 import requests
 import json
 from pathlib import Path
+
+# Determine project roots dynamically
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # GraphForge/server/
+APP_ROOT = PROJECT_ROOT.parent / "app"                   # GraphForge/app/
 
 def wait_for_server(url="http://localhost:8000", timeout=30):
     """等待服务器启动"""
@@ -57,7 +74,7 @@ def test_frontend_types():
     print("📝 前端类型定义检查")
     print("="*60)
     
-    services_ts = Path("/home/yuye/POW/app/vue/src/api/services.ts")
+    services_ts = APP_ROOT / "src/api/services.ts"
     if not services_ts.exists():
         print("❌ services.ts 不存在")
         return False
@@ -87,7 +104,7 @@ def test_frontend_component():
     print("🎨 前端组件检查")
     print("="*60)
     
-    documents_vue = Path("/home/yuye/POW/app/vue/src/views/Documents.vue")
+    documents_vue = APP_ROOT / "src/views/Documents.vue"
     if not documents_vue.exists():
         print("❌ Documents.vue 不存在")
         return False
@@ -119,7 +136,7 @@ def test_backend_endpoints():
     print("🔧 后端端点检查")
     print("="*60)
     
-    upload_py = Path("/home/yuye/POW/server/routes/upload.py")
+    upload_py = PROJECT_ROOT / "routes/upload.py"
     if not upload_py.exists():
         print("❌ upload.py 不存在")
         return False
@@ -151,7 +168,7 @@ def test_routing():
     print("🛣️  路由配置检查")
     print("="*60)
     
-    router_ts = Path("/home/yuye/POW/app/vue/src/router/index.ts")
+    router_ts = APP_ROOT / "src/router/index.ts"
     if not router_ts.exists():
         print("❌ router/index.ts 不存在")
         return False
@@ -185,7 +202,7 @@ def main():
     print("\n🚀 启动 FastAPI 服务器...")
     server_process = subprocess.Popen(
         ["python3", "main.py"],
-        cwd="/home/yuye/POW/server",
+        cwd=str(PROJECT_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True

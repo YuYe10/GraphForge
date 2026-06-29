@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""综合集成验证脚本 - 验证文档管理功能实现"""
+"""
+综合集成验证脚本 - 验证文档管理功能实现
+Comprehensive Integration Verification Script - Document Management Implementation
+
+该脚本通过静态代码分析和文件存在性检查，验证文档管理功能的
+前后端实现完整性，无需启动服务器或连接数据库。
+
+Usage:
+    python tests/test_documents_integration.py
+"""
 
 import sys
 import os
@@ -7,19 +16,24 @@ import ast
 import json
 from pathlib import Path
 
+# Determine project roots dynamically
+PROJECT_ROOT = Path(__file__).resolve().parent.parent   # GraphForge/server/
+APP_ROOT = PROJECT_ROOT.parent / "app"                   # GraphForge/app/
+REPO_ROOT = PROJECT_ROOT.parent                          # GraphForge/
+
 def check_backend_implementation():
     """检查后端实现"""
     print("\n" + "="*60)
     print("📋 检查后端实现")
     print("="*60)
     
-    upload_py = Path("/home/yuye/POW/server/routes/upload.py")
+    upload_py = PROJECT_ROOT / "routes/upload.py"
     if not upload_py.exists():
         print("❌ 错误: upload.py 不存在")
         return False
-    
+
     content = upload_py.read_text()
-    
+
     # 检查是否有 list_documents 端点
     if "async def list_documents" in content:
         print("✅ 发现 list_documents() 端点")
@@ -57,7 +71,7 @@ def check_frontend_implementation():
     print("="*60)
     
     # 检查 API 服务
-    services_ts = Path("/home/yuye/POW/app/vue/src/api/services.ts")
+    services_ts = APP_ROOT / "src/api/services.ts"
     if not services_ts.exists():
         print("❌ 错误: services.ts 不存在")
         return False
@@ -89,7 +103,7 @@ def check_frontend_implementation():
         return False
     
     # 检查 Vue 组件
-    documents_vue = Path("/home/yuye/POW/app/vue/src/views/Documents.vue")
+    documents_vue = APP_ROOT / "src/views/Documents.vue"
     if not documents_vue.exists():
         print("❌ 错误: Documents.vue 不存在")
         return False
@@ -117,11 +131,11 @@ def check_frontend_implementation():
         return False
     
     # 检查路由
-    router_ts = Path("/home/yuye/POW/app/vue/src/router/index.ts")
+    router_ts = APP_ROOT / "src/router/index.ts"
     if not router_ts.exists():
         print("❌ 错误: router/index.ts 不存在")
         return False
-    
+
     content = router_ts.read_text()
     
     if "'documents'" in content or '"documents"' in content:
@@ -137,11 +151,11 @@ def check_frontend_implementation():
         return False
     
     # 检查导航集成
-    main_layout = Path("/home/yuye/POW/app/vue/src/layouts/MainLayout.vue")
+    main_layout = APP_ROOT / "src/layouts/MainLayout.vue"
     if not main_layout.exists():
         print("❌ 错误: MainLayout.vue 不存在")
         return False
-    
+
     content = main_layout.read_text()
     
     if "文档管理" in content or "documents" in content.lower():
@@ -157,7 +171,7 @@ def check_documentation():
     print("📚 检查文档")
     print("="*60)
     
-    doc_file = Path("/home/yuye/POW/DOCUMENTS_FEATURE_GUIDE.md")
+    doc_file = REPO_ROOT / "DOCUMENTS_FEATURE_GUIDE.md"
     if doc_file.exists():
         print("✅ 存在功能指南文档")
         lines = doc_file.read_text().split('\n')
@@ -165,7 +179,7 @@ def check_documentation():
     else:
         print("⚠️  缺少功能指南文档")
     
-    test_file = Path("/home/yuye/POW/test_documents_api.py")
+    test_file = REPO_ROOT / "test_documents_api.py"
     if test_file.exists():
         print("✅ 存在 API 测试脚本")
         lines = test_file.read_text().split('\n')
@@ -182,9 +196,9 @@ def check_python_syntax():
     print("="*60)
     
     python_files = [
-        "/home/yuye/POW/server/routes/upload.py",
-        "/home/yuye/POW/server/graphrag/stages/stage6_graph_service.py",
-        "/home/yuye/POW/server/graphrag/stages/stage8_metrics_service.py",
+        str(PROJECT_ROOT / "routes/upload.py"),
+        str(PROJECT_ROOT / "graphrag/stages/stage6_graph_service.py"),
+        str(PROJECT_ROOT / "graphrag/stages/stage8_metrics_service.py"),
     ]
     
     all_ok = True
@@ -222,14 +236,14 @@ def check_feature_completeness():
     }
     
     # 检查后端
-    upload_py = Path("/home/yuye/POW/server/routes/upload.py").read_text()
+    upload_py = (PROJECT_ROOT / "routes/upload.py").read_text()
     if "async def list_documents" in upload_py:
         features["文档列表 API"] = True
     if "async def get_document" in upload_py:
         features["文档详情 API"] = True
     
     # 检查前端
-    documents_vue = Path("/home/yuye/POW/app/vue/src/views/Documents.vue")
+    documents_vue = APP_ROOT / "src/views/Documents.vue"
     if documents_vue.exists():
         content = documents_vue.read_text()
         if "loadDocuments" in content:
@@ -238,24 +252,24 @@ def check_feature_completeness():
             features["前端详情模态框"] = True
     
     # 检查路由
-    router_ts = Path("/home/yuye/POW/app/vue/src/router/index.ts").read_text()
+    router_ts = (APP_ROOT / "src/router/index.ts").read_text()
     if "documents" in router_ts.lower():
         features["路由配置"] = True
     
     # 检查导航
-    main_layout = Path("/home/yuye/POW/app/vue/src/layouts/MainLayout.vue").read_text()
+    main_layout = (APP_ROOT / "src/layouts/MainLayout.vue").read_text()
     if "文档管理" in main_layout:
         features["导航集成"] = True
     
     # 检查仪表板
-    dashboard = Path("/home/yuye/POW/app/vue/src/views/Dashboard.vue")
+    dashboard = APP_ROOT / "src/views/Dashboard.vue"
     if dashboard.exists():
         content = dashboard.read_text()
         if "文档管理" in content:
             features["仪表板集成"] = True
     
     # 检查类型
-    services_ts = Path("/home/yuye/POW/app/vue/src/api/services.ts").read_text()
+    services_ts = (APP_ROOT / "src/api/services.ts").read_text()
     if "DocumentListResponse" in services_ts and "DocumentDetail" in services_ts:
         features["类型定义"] = True
     

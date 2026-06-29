@@ -106,6 +106,22 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Query.vue - Cypher Query Interface View
+ * Cypher 查询接口视图
+ *
+ * Purpose / 功能说明:
+ *   Interactive query interface with three query modes:
+ *   1. Cypher query - free-form MATCH/RETURN statements with templates and history
+ *   2. Get Nodes - label-filtered node browsing
+ *   3. Get Edges - relationship-type-filtered edge browsing
+ *   Results are displayed as both a table (with auto-generated columns) and raw JSON.
+ *   交互式查询界面，包含三种查询模式：
+ *   1. Cypher 查询 - 使用模板和历史的自由格式 MATCH/RETURN 语句
+ *   2. 获取节点 - 按标签筛选的节点浏览
+ *   3. 获取关系 - 按关系类型筛选的边浏览
+ *   结果以表格（自动生成列）和原始 JSON 两种视图展示。
+ */
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
@@ -115,21 +131,45 @@ import { executeCypherQuery, getNodes, getEdges } from '@/api/services'
 const { t: _t } = useI18n()
 const message = useMessage()
 
+// ---- Reactive State / 响应式状态 ----
+
+/** Currently active tab: "cypher" | "nodes" | "edges" / 当前激活的标签页 */
 const activeTab = ref('cypher')
+
+/** Cypher query text input / Cypher 查询文本输入 */
 const cypherQuery = ref('')
+
+/** Node label filter for the "Get Nodes" tab / "获取节点"标签页的标签筛选 */
 const nodeLabel = ref('')
+/** Node result limit for the "Get Nodes" tab / "获取节点"标签页的结果数量限制 */
 const nodeLimit = ref(100)
+
+/** Relationship type filter for the "Get Edges" tab / "获取关系"标签页的关系类型筛选 */
 const relType = ref('')
+/** Edge result limit for the "Get Edges" tab / "获取关系"标签页的结果数量限制 */
 const edgeLimit = ref(100)
+
+/** Whether a Cypher query is currently executing / Cypher 查询是否正在执行 */
 const executing = ref(false)
+/** Whether a "Get Nodes" request is in progress / 获取节点请求是否进行中 */
 const fetchingNodes = ref(false)
+/** Whether a "Get Edges" request is in progress / 获取关系请求是否进行中 */
 const fetchingEdges = ref(false)
+
+/** The query result data (shared across all three modes) / 查询结果数据（三种模式共享） */
 const queryResult = ref<any>(null)
+/** Active result view: "table" | "json" / 当前结果视图："table" | "json" */
 const resultView = ref('table')
 
+/** Type definition for a history entry / 历史记录条目的类型定义 */
 interface HistoryItem { query: string; time: string; success: boolean }
+/** List of past executed queries / 已执行的查询历史列表 */
 const queryHistory = ref<HistoryItem[]>([])
 
+/**
+ * Pre-defined Cypher query templates for quick access.
+ * 预定义的 Cypher 查询模板，方便快速使用。
+ */
 const cypherTemplates = [
   { label: '查看所有节点', query: 'MATCH (n) RETURN n LIMIT 25' },
   { label: '查看概念', query: 'MATCH (n:Concept) RETURN n LIMIT 25' },
@@ -138,14 +178,34 @@ const cypherTemplates = [
   { label: '统计关系', query: 'MATCH ()-[r]->() RETURN type(r) as type, count(r) as count ORDER BY count DESC' }
 ]
 
+// ---- Utility Functions / 工具函数 ----
+
+/**
+ * Truncate a string to n characters with an ellipsis.
+ * 将字符串截断到 n 个字符并添加省略号。
+ */
 const truncate = (s: string, n: number) => s.length > n ? s.slice(0, n) + '...' : s
 
+/**
+ * Clear all query history entries.
+ * 清空所有查询历史记录。
+ */
 const clearHistory = () => { queryHistory.value = [] }
 
+// ---- Computed / 计算属性 ----
+
+/**
+ * Auto-generate naive-ui data-table columns from the keys of the first result row.
+ * Each column renders objects as JSON strings and nullish values as empty strings.
+ * 从第一行结果对象的键自动生成 naive-ui 数据表列定义。
+ * 对象类型的值会渲染为 JSON 字符串，空值渲染为空字符串。
+ */
 const resultColumns = computed(() => {
   if (!queryResult.value?.length) return []
   return Object.keys(queryResult.value[0]).map(key => ({
-    title: key, key, ellipsis: { tooltip: true },
+    title: key,
+    key,
+    ellipsis: { tooltip: true },
     render: (row: any) => {
       const v = row[key]
       return typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
@@ -153,6 +213,14 @@ const resultColumns = computed(() => {
   }))
 })
 
+// ---- Query Functions / 查询函数 ----
+
+/**
+ * Execute the current Cypher query string via the API.
+ * Records the result in the history (including success/failure state).
+ * 通过 API 执行当前的 Cypher 查询语句。
+ * 将结果记录到历史中（包括成功/失败状态）。
+ */
 const executeCypher = async () => {
   if (!cypherQuery.value.trim()) { message.warning('请输入查询语句'); return }
   executing.value = true
@@ -174,6 +242,10 @@ const executeCypher = async () => {
   } finally { executing.value = false }
 }
 
+/**
+ * Fetch nodes from the API, optionally filtered by label and limited in count.
+ * 从 API 获取节点，可按标签筛选并限制数量。
+ */
 const fetchNodes = async () => {
   fetchingNodes.value = true
   try {
@@ -186,6 +258,10 @@ const fetchNodes = async () => {
   finally { fetchingNodes.value = false }
 }
 
+/**
+ * Fetch edges from the API, optionally filtered by relationship type and limited in count.
+ * 从 API 获取关系，可按关系类型筛选并限制数量。
+ */
 const fetchEdges = async () => {
   fetchingEdges.value = true
   try {

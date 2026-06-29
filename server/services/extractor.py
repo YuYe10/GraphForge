@@ -1,5 +1,29 @@
-"""Triplet extraction service using LLM."""
-import json
+"""
+Triplet Extraction Service using LLM
+=====================================
+
+三元组提取服务，利用大语言模型从文本中抽取结构化知识。
+
+Extracts subject-predicate-object triplets from text chunks using an LLM.
+Supports multiple AI providers through the unified AIProviderFactory interface.
+Falls back to mock mode when no AI provider is configured.
+
+Extraction pipeline / 提取流水线::
+
+    Text Chunk
+        │
+        ▼
+    _build_prompt()  →  Bilingual prompt with relationship type guide
+        │
+        ▼
+    AIProvider.chat_completion()  →  JSON response
+        │
+        ▼
+    JSON parsing + validation  →  List[Triplet]
+        │
+        ▼
+    Entity linker  →  Linked triplets
+"""
 from typing import List, Optional
 from infra.ai_providers import AIProviderFactory, BaseAIClient
 from models.document import Triplet, Chunk
@@ -7,35 +31,50 @@ from services.config_service import config_service
 
 
 class TripletExtractor:
-    """Extract triplets from text using LLM."""
-    
+    """
+    Extract knowledge triplets from text using LLM.
+    使用 LLM 从文本中提取知识三元组。
+
+    Handles AI provider initialization, prompt construction, API communication,
+    response parsing, and graceful fallback to mock mode.
+
+    The extraction prompt supports both Chinese and English text, with a
+    comprehensive relationship type guide covering 14+ semantic relations.
+
+    Attributes:
+        client:    AI client instance / AI 客户端实例
+        provider:  AI provider name / AI 提供商名称
+        model:     Model name / 模型名称
+    """
+
     def __init__(self):
         self.client: Optional[BaseAIClient] = None
         self.provider = None
         self.model = None
-        
+
         try:
+            # Load AI configuration from runtime config (Neo4j database)
             # 从数据库读取运行时配置
             ai_config = config_service.get_ai_provider_config()
             self.provider = ai_config["provider"]
             api_key = ai_config["api_key"]
             model = ai_config["model"]
             base_url = ai_config["base_url"]
-            
-            # Mock 模式不需要 API key
+
+            # Mock mode doesn't need a real API key
             if self.provider == "mock":
                 api_key = api_key or "mock"
-            
-            # 创建AI客户端
+
+            # Create AI client / 创建AI客户端
             self.client = AIProviderFactory.create_client(
                 provider=self.provider,
                 api_key=api_key,
                 model=model,
-                base_url=base_url
+                base_url=base_url,
             )
             self.model = self.client.model
-            
-            # 获取提供商名称用于显示
+
+            # Display provider info / 显示提供商信息
             provider_names = {
                 "openai": "OpenAI GPT",
                 "anthropic": "Anthropic Claude",
@@ -48,88 +87,134 @@ class TripletExtractor:
                 "minimax": "MiniMax",
                 "doubao": "字节豆包",
                 "ollama": "Ollama",
-                "mock": "Mock"
+                "mock": "Mock",
             }
             provider_name = provider_names.get(self.provider, self.provider)
-            
+
             if self.provider != "mock":
                 print(f"✅ 使用 {provider_name}，模型: {self.model}")
             else:
                 print("ℹ️  使用 Mock 模式进行三元组提取")
-                
+
         except ValueError as e:
             print(f"⚠️  警告: AI 配置错误 ({e})，将使用 mock 模式")
             self.provider = "mock"
             self.client = AIProviderFactory.create_client("mock")
             self.model = "mock"
         except Exception as e:
-            print(f"⚠️  警告: 无法初始化 AI 客户端 ({e})，将使用 mock 模式")
+            print(
+                f"⚠️  警告: 无法初始化 AI 客户端 ({e})，"
+                f"将使用 mock 模式"
+            )
             self.provider = "mock"
             self.client = AIProviderFactory.create_client("mock")
             self.model = "mock"
-    
+
     def extract(self, chunk: Chunk) -> List[Triplet]:
         """
-        Extract triplets from a text chunk.
-        
+        Extract triplets from a text chunk using AI.
+        使用 AI 从文本块中提取三元组。
+
+        Process flow / 处理流程::
+
+            1. Build bilingual extraction prompt / 构建双语提取提示词
+            2. Send to AI provider with json_mode / 发送给 AI 提供商
+            3. Parse JSON response / 解析 JSON 响应
+            4. Filter invalid triplets (missing required fields)
+               / 过滤无效三元组
+            5. Return validated Triplet objects / 返回验证后的三元组列表
+
         Args:
-            chunk: Text chunk to extract from
-            
+            chunk:  Text chunk to extract from / 要提取的文本块
+
         Returns:
-            List of Triplet objects
+            List of validated Triplet objects / 验证后的三元组列表
+            Empty list on failure / 失败时返回空列表
         """
         print(f"\n{'='*80}")
-        print(f"🔍 [知识抽取] 开始处理文本块 (chunk_id: {chunk.chunk_id})")
+        print(
+            f"🔍 [知识抽取] 开始处理文本块 "
+            f"(chunk_id: {chunk.chunk_id})"
+        )
         print(f"📄 文本长度: {len(chunk.text)} 字符")
         print(f"📝 文本预览: {chunk.text[:200]}...")
-        
+
         if not self.client or self.provider == "mock":
-            print(f"⚠️  [知识抽取] 使用 Mock 模式（未配置 AI 服务）")
-            # Mock mode: return empty list or simple extraction
+            print(
+                f"⚠️  [知识抽取] 使用 Mock 模式"
+                f"（未配置 AI 服务）"
+            )
             result = self._mock_extract(chunk)
-            print(f"📊 [知识抽取] Mock 模式提取结果: {len(result)} 个三元组")
+            print(
+                f"📊 [知识抽取] Mock 模式提取结果: "
+                f"{len(result)} 个三元组"
+            )
             return result
-        
+
         prompt = self._build_prompt(chunk.text)
-        raw_content = None  # 初始化变量，用于错误处理
-        
+        raw_content = None
+
         try:
-            print(f"🤖 [AI请求] Provider: {self.provider}, Model: {self.model}")
+            print(
+                f"🤖 [AI请求] Provider: {self.provider}, "
+                f"Model: {self.model}"
+            )
             print(f"📤 [AI请求] 发送请求到 AI 服务...")
-            
-            # 构建消息
+
             messages = [
                 {
                     "role": "system",
-                    "content": "You are a knowledge extraction expert. Extract subject-predicate-object triplets from the given text. Return only valid JSON array."
+                    "content": (
+                        "You are a knowledge extraction expert. "
+                        "Extract subject-predicate-object triplets "
+                        "from the given text. "
+                        "Return only valid JSON array."
+                    ),
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ]
-            
-            # 使用统一接口调用AI
+
+            # Send to AI with JSON mode / 使用 json_mode 发送
             raw_content = self.client.chat_completion(
                 messages=messages,
                 temperature=0.3,
-                json_mode=True  # 请求JSON格式响应
+                json_mode=True,
             )
-            print(f"📥 [AI响应] 收到响应，长度: {len(raw_content)} 字符")
-            print(f"📥 [AI响应] 原始内容预览: {raw_content[:500]}...")
-            
-            # 解析JSON响应
+            print(
+                f"📥 [AI响应] 收到响应，长度: "
+                f"{len(raw_content)} 字符"
+            )
+            print(
+                f"📥 [AI响应] 原始内容预览: "
+                f"{raw_content[:500]}..."
+            )
+
+            # Parse JSON response / 解析 JSON 响应
+            import json
+
             result = json.loads(raw_content)
             raw_triplets = result.get("triplets", [])
-            print(f"📊 [AI响应] 解析到原始三元组数量: {len(raw_triplets)}")
-            
-            # 显示原始三元组详情
-            for idx, t in enumerate(raw_triplets[:5], 1):  # 只显示前5个
-                print(f"   [{idx}] {t.get('subject', 'N/A')} - {t.get('predicate', 'N/A')} - {t.get('object', 'N/A')} (置信度: {t.get('confidence', 0)})")
+            print(
+                f"📊 [AI响应] 解析到原始三元组数量: "
+                f"{len(raw_triplets)}"
+            )
+
+            # Display first few triplets / 显示前几个三元组
+            for idx, t in enumerate(raw_triplets[:5], 1):
+                print(
+                    f"   [{idx}] "
+                    f"{t.get('subject', 'N/A')} - "
+                    f"{t.get('predicate', 'N/A')} - "
+                    f"{t.get('object', 'N/A')} "
+                    f"(置信度: {t.get('confidence', 0)})"
+                )
             if len(raw_triplets) > 5:
-                print(f"   ... 还有 {len(raw_triplets) - 5} 个三元组")
-            
-            # 过滤和转换三元组
+                print(
+                    f"   ... 还有 {len(raw_triplets) - 5} 个三元组"
+                )
+
+            # Convert to Triplet objects, filtering invalid ones
+            # 转换为 Triplet 对象，过滤无效三元组
             triplets = [
                 Triplet(
                     subject=t.get("subject", ""),
@@ -141,37 +226,63 @@ class TripletExtractor:
                         "chunkId": chunk.chunk_id,
                         "page": chunk.meta.get("page"),
                         "offset": chunk.meta.get("offset"),
-                        "text": chunk.text[:200]  # Preview
+                        "text": chunk.text[:200],
                     },
                     doc_id=chunk.doc_id,
-                    chunk_id=chunk.chunk_id
+                    chunk_id=chunk.chunk_id,
                 )
                 for t in raw_triplets
-                if t.get("subject") and t.get("predicate") and t.get("object")
+                if t.get("subject")
+                and t.get("predicate")
+                and t.get("object")
             ]
-            
-            # 显示过滤后的结果
+
             filtered_count = len(raw_triplets) - len(triplets)
             if filtered_count > 0:
-                print(f"⚠️  [过滤] 过滤掉 {filtered_count} 个无效三元组（缺少必要字段）")
-            
-            print(f"✅ [知识抽取] 成功提取 {len(triplets)} 个有效三元组")
+                print(
+                    f"⚠️  [过滤] 过滤掉 {filtered_count} 个"
+                    f"无效三元组（缺少必要字段）"
+                )
+
+            print(
+                f"✅ [知识抽取] 成功提取 {len(triplets)} 个有效三元组"
+            )
             print(f"{'='*80}\n")
-            
+
             return triplets
+
         except json.JSONDecodeError as e:
             print(f"❌ [知识抽取] JSON 解析错误: {e}")
             if raw_content:
-                print(f"📥 [AI响应] 原始响应内容: {raw_content[:1000]}")
+                print(
+                    f"📥 [AI响应] 原始响应内容: "
+                    f"{raw_content[:1000]}"
+                )
             return []
         except Exception as e:
             print(f"❌ [知识抽取] 提取失败: {e}")
             import traceback
+
             print(f"📋 [错误详情] {traceback.format_exc()}")
             return []
-    
+
     def _build_prompt(self, text: str) -> str:
-        """Build bilingual extraction prompt for both Chinese and English."""
+        """
+        Build a bilingual extraction prompt for both Chinese and English text.
+        构建支持中英文的双语提取提示词。
+
+        The prompt includes:
+        - Task description in both languages
+        - 14 relationship types with bilingual descriptions
+        - Strict JSON output format specification
+        - Quality guidelines (confidence, language preservation)
+
+        Args:
+            text:  The text content to extract from / 待提取的文本内容
+
+        Returns:
+            Formatted prompt string / 格式化后的提示词字符串
+        """
         return f"""You are a professional knowledge graph construction expert. Extract structured knowledge triplets (subject-relation-object) from the given text.
 你是一个专业的知识图谱构建专家。请从以下文本中提取结构化的知识三元组（主体-关系-客体）。
 
@@ -225,32 +336,48 @@ class TripletExtractor:
 
 Return ONLY the JSON object, no other explanatory text.
 只返回 JSON 对象，不要包含任何其他文字说明。"""
-    
+
     def _mock_extract(self, chunk: Chunk) -> List[Triplet]:
-        """Mock extraction for testing without OpenAI API."""
-        # Simple rule-based extraction as fallback
+        """
+        Mock extraction using simple rule-based patterns.
+        使用简单规则模式进行模拟提取（无需 AI API）。
+
+        Extracts "X is Y" patterns from English text as a demonstration.
+        This allows the extraction pipeline to function without an AI provider.
+
+        Args:
+            chunk:  Text chunk to extract from / 待提取的文本块
+
+        Returns:
+            List of Triplet objects from regex matching / 正则匹配的三元组列表
+        """
+        import re
+
         triplets = []
         text = chunk.text
-        
-        # Look for "X is Y" patterns
-        import re
-        is_pattern = re.compile(r'([A-Z][a-zA-Z\s]+?)\s+is\s+(?:a\s+)?([a-zA-Z\s]+?)(?:\.|,|$)')
-        for match in is_pattern.finditer(text):
-            triplets.append(Triplet(
-                subject=match.group(1).strip(),
-                predicate="is_a",
-                object=match.group(2).strip(),
-                confidence=0.7,
-                evidence={
-                    "docId": chunk.doc_id,
-                    "chunkId": chunk.chunk_id,
-                    "page": chunk.meta.get("page"),
-                    "offset": chunk.meta.get("offset"),
-                    "text": chunk.text[:200]
-                },
-                doc_id=chunk.doc_id,
-                chunk_id=chunk.chunk_id
-            ))
-        
-        return triplets
 
+        # Look for "X is a Y" patterns / 查找"X is a Y"模式
+        is_pattern = re.compile(
+            r'([A-Z][a-zA-Z\s]+?)\s+is\s+(?:a\s+)?'
+            r'([a-zA-Z\s]+?)(?:\.|,|$)'
+        )
+        for match in is_pattern.finditer(text):
+            triplets.append(
+                Triplet(
+                    subject=match.group(1).strip(),
+                    predicate="is_a",
+                    object=match.group(2).strip(),
+                    confidence=0.7,
+                    evidence={
+                        "docId": chunk.doc_id,
+                        "chunkId": chunk.chunk_id,
+                        "page": chunk.meta.get("page"),
+                        "offset": chunk.meta.get("offset"),
+                        "text": chunk.text[:200],
+                    },
+                    doc_id=chunk.doc_id,
+                    chunk_id=chunk.chunk_id,
+                )
+            )
+
+        return triplets

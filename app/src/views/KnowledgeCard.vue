@@ -121,6 +121,21 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * KnowledgeCard.vue - Knowledge Card Management View
+ * 知识卡片管理视图
+ *
+ * Purpose / 功能说明:
+ *   Full CRUD for knowledge cards with modal-based create/edit/view workflows.
+ *   Supports filtering by domain and category, dynamic tag inputs, multi-tab forms
+ *   (basic info, additional info, relationships), and importance labeling.
+ *   提供知识卡片的完整增删改查(CRUD)功能，支持基于领域和分类的筛选、
+ *   动态标签输入、多标签页表单（基本信息、附加信息、关联关系）以及重要性标记。
+ *
+ * Lifecycle / 卡片管理生命周期:
+ *   Load (onMounted) -> Filter (domain/category) -> View/Edit/Create (modal) -> Save -> Reload
+ *   加载(onMounted) -> 筛选(domain/category) -> 查看/编辑/创建(modal) -> 保存 -> 重新加载
+ */
 import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useMessage, useDialog } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
@@ -131,33 +146,97 @@ const { t } = useI18n()
 const message = useMessage()
 const dialog = useDialog()
 
-const cards = ref<any[]>([])
-const total = ref(0)
-const loading = ref(false)
-const submitting = ref(false)
-const filterDomain = ref<string | null>(null)
-const filterCategory = ref<string | null>(null)
-const showCreateModal = ref(false)
-const showUpdateModal = ref(false)
-const showViewModal = ref(false)
-const isEditing = computed(() => showUpdateModal.value)
-const showEditModalComputed = computed({ get: () => showCreateModal.value || showUpdateModal.value, set: (v) => { if (!v) { showCreateModal.value = false; showUpdateModal.value = false } } })
+// ---- Reactive State / 响应式状态 ----
 
+/** All loaded knowledge cards / 所有已加载的知识卡片 */
+const cards = ref<any[]>([])
+/** Total count from the API response / API 返回的总数 */
+const total = ref(0)
+/** Whether the card list is loading / 卡片列表是否正在加载 */
+const loading = ref(false)
+/** Whether a create/update submission is in progress / 创建/更新提交是否进行中 */
+const submitting = ref(false)
+
+/** Filter dropdown: selected domain (null means "all") / 筛选下拉框：选中的领域（null表示"全部"） */
+const filterDomain = ref<string | null>(null)
+/** Filter dropdown: selected category (null means "all") / 筛选下拉框：选中的分类（null表示"全部"） */
+const filterCategory = ref<string | null>(null)
+
+/** Whether the "create" modal is visible / 创建弹窗是否可见 */
+const showCreateModal = ref(false)
+/** Whether the "update" modal is visible / 更新弹窗是否可见 */
+const showUpdateModal = ref(false)
+/** Whether the "view details" modal is visible / 查看详情弹窗是否可见 */
+const showViewModal = ref(false)
+
+/** True when updating an existing card (derived from showUpdateModal) / 是否处于编辑状态（由 showUpdateModal 派生） */
+const isEditing = computed(() => showUpdateModal.value)
+
+/**
+ * Unified computed for the edit modal's v-model:show.
+ * Merges create and update into one modal, closing either when the modal is dismissed.
+ * 统一的编辑弹窗 v-model:show 计算属性。
+ * 合并创建和更新弹窗为一个弹窗，关闭时同时重置两者。
+ */
+const showEditModalComputed = computed({
+  get: () => showCreateModal.value || showUpdateModal.value,
+  set: (v) => { if (!v) { showCreateModal.value = false; showUpdateModal.value = false } }
+})
+
+/** Reference to the naive-ui form instance for validation / naive-ui 表单实例引用（用于表单校验） */
 const formRef = ref()
-const formData = reactive({ name: '', description: '', domain: '', category: '', importance: 'medium', tags: [] as string[], aliases: [] as string[], related_concepts: [] as string[], attributes: {} })
-const formRules = { name: [{ required: true, message: t('knowledge_card.card_name_required'), trigger: 'blur' }] }
+
+/** Form model bound to the edit/create modal / 编辑/创建弹窗中绑定的表单数据模型 */
+const formData = reactive({
+  name: '',
+  description: '',
+  domain: '',
+  category: '',
+  importance: 'medium',
+  tags: [] as string[],
+  aliases: [] as string[],
+  related_concepts: [] as string[],
+  attributes: {}
+})
+
+/** Form validation rules / 表单校验规则 */
+const formRules = {
+  name: [{ required: true, message: t('knowledge_card.card_name_required'), trigger: 'blur' }]
+}
+
+/** The card being viewed in the detail modal / 查看弹窗中正在展示的卡片 */
 const viewingCard = ref<any>(null)
+/** ID of the card being edited (null when creating) / 正在编辑的卡片 ID（创建时为 null） */
 const editingCardId = ref<string | null>(null)
 
+// ---- Computed / 计算属性 ----
+
+/**
+ * Domain filter options derived from loaded cards.
+ * Includes an "All" option at the top.
+ * 从已加载卡片中提取领域筛选选项，顶部包含"全部"选项。
+ */
 const domainOptions = computed(() => {
   const domains = new Set(cards.value.map(c => c.domain).filter(Boolean))
   return [{ label: t('knowledge_card.all'), value: null }, ...Array.from(domains).map(d => ({ label: d, value: d }))]
 })
+
+/**
+ * Category filter options derived from loaded cards.
+ * Includes an "All" option at the top.
+ * 从已加载卡片中提取分类筛选选项，顶部包含"全部"选项。
+ */
 const categoryOptions = computed(() => {
   const cats = new Set(cards.value.map(c => c.category).filter(Boolean))
   return [{ label: t('knowledge_card.all'), value: null }, ...Array.from(cats).map(c => ({ label: c, value: c }))]
 })
 
+// ---- Functions / 函数 ----
+
+/**
+ * Fetch knowledge cards from the API, applying domain/category filters if set.
+ * 从 API 获取知识卡片列表，应用已设置的领域/分类筛选条件。
+ */
 const loadCards = async () => {
   loading.value = true
   try {
@@ -171,41 +250,128 @@ const loadCards = async () => {
   finally { loading.value = false }
 }
 
+/**
+ * Open the view detail modal for a card.
+ * 打开查看卡片详情的弹窗。
+ */
 const viewCard = (c: any) => { viewingCard.value = c; showViewModal.value = true }
+
+/**
+ * Open the edit modal and populate the form with the selected card's data.
+ * Shallow-copies array/object fields to avoid mutating the original.
+ * 打开编辑弹窗并将表单填充为选中卡片的数据。
+ * 对数组/对象字段进行浅拷贝以避免修改原始数据。
+ */
 const editCard = (c: any) => {
   editingCardId.value = c.id
-  Object.assign(formData, { name: c.name, description: c.description || '', domain: c.domain || '', category: c.category || '', importance: c.importance || 'medium', tags: [...(c.tags || [])], aliases: [...(c.aliases || [])], related_concepts: [...(c.related_concepts || [])], attributes: { ...(c.attributes || {}) } })
+  Object.assign(formData, {
+    name: c.name,
+    description: c.description || '',
+    domain: c.domain || '',
+    category: c.category || '',
+    importance: c.importance || 'medium',
+    tags: [...(c.tags || [])],
+    aliases: [...(c.aliases || [])],
+    related_concepts: [...(c.related_concepts || [])],
+    attributes: { ...(c.attributes || {}) }
+  })
   showUpdateModal.value = true
 }
+
+/**
+ * Show a confirmation dialog and delete the card on positive click.
+ * 弹出确认对话框，确认后删除卡片。
+ */
 const confirmDelete = (c: any) => {
   dialog.warning({
-    title: t('knowledge_card.confirm_delete'), content: t('knowledge_card.confirm_delete_message', { name: c.name }),
-    positiveText: t('knowledge_card.delete'), negativeText: t('knowledge_card.cancel'),
+    title: t('knowledge_card.confirm_delete'),
+    content: t('knowledge_card.confirm_delete_message', { name: c.name }),
+    positiveText: t('knowledge_card.delete'),
+    negativeText: t('knowledge_card.cancel'),
     onPositiveClick: async () => {
-      try { await api.delete(`/knowledge-cards/${c.id}`); message.success(t('knowledge_card.delete_success')); await loadCards() }
-      catch (e: any) { message.error(e.response?.data?.detail || t('knowledge_card.delete_failed')) }
+      try {
+        await api.delete(`/knowledge-cards/${c.id}`)
+        message.success(t('knowledge_card.delete_success'))
+        await loadCards()
+      } catch (e: any) {
+        message.error(e.response?.data?.detail || t('knowledge_card.delete_failed'))
+      }
     }
   })
 }
+
+/**
+ * Handle form submission for both create and update.
+ * Validates the form, sends the appropriate POST or PUT request, then reloads the list.
+ * 处理创建和更新的表单提交。
+ * 校验表单，发送相应的 POST 或 PUT 请求，然后重新加载卡片列表。
+ */
 const handleSubmit = async () => {
   try {
-    await formRef.value?.validate(); submitting.value = true
-    const payload = { name: formData.name, description: formData.description || undefined, domain: formData.domain || undefined, category: formData.category || undefined, importance: formData.importance, tags: formData.tags, aliases: formData.aliases, related_concepts: formData.related_concepts, attributes: formData.attributes }
-    if (isEditing.value) { await api.put(`/knowledge-cards/${editingCardId.value}`, payload); message.success(t('knowledge_card.update_success')) }
-    else { await api.post('/knowledge-cards', payload); message.success(t('knowledge_card.create_success')) }
-    closeEditModal(); await loadCards()
+    await formRef.value?.validate()
+    submitting.value = true
+    const payload = {
+      name: formData.name,
+      description: formData.description || undefined,
+      domain: formData.domain || undefined,
+      category: formData.category || undefined,
+      importance: formData.importance,
+      tags: formData.tags,
+      aliases: formData.aliases,
+      related_concepts: formData.related_concepts,
+      attributes: formData.attributes
+    }
+    if (isEditing.value) {
+      await api.put(`/knowledge-cards/${editingCardId.value}`, payload)
+      message.success(t('knowledge_card.update_success'))
+    } else {
+      await api.post('/knowledge-cards', payload)
+      message.success(t('knowledge_card.create_success'))
+    }
+    closeEditModal()
+    await loadCards()
   } catch (e: any) {
     if (!e?.errors) message.error(e.response?.data?.detail || (isEditing.value ? t('knowledge_card.update_failed') : t('knowledge_card.create_failed')))
   } finally { submitting.value = false }
 }
+
+/**
+ * Close the edit/create modal and reset the form data to defaults.
+ * 关闭编辑/创建弹窗并将表单数据重置为默认值。
+ */
 const closeEditModal = () => {
-  showCreateModal.value = false; showUpdateModal.value = false; editingCardId.value = null
+  showCreateModal.value = false
+  showUpdateModal.value = false
+  editingCardId.value = null
   formRef.value?.restoreValidation()
-  Object.assign(formData, { name: '', description: '', domain: '', category: '', importance: 'medium', tags: [], aliases: [], related_concepts: [], attributes: {} })
+  Object.assign(formData, {
+    name: '',
+    description: '',
+    domain: '',
+    category: '',
+    importance: 'medium',
+    tags: [],
+    aliases: [],
+    related_concepts: [],
+    attributes: {}
+  })
 }
+
+/**
+ * Map importance level string to naive-ui tag type.
+ * 将重要性等级字符串映射到 naive-ui 标签类型。
+ */
 const getImportanceType = (i: string) => ({ low: 'default', medium: 'info', high: 'warning' } as any)[i] || 'default'
+
+/**
+ * Format a date string to a localized human-readable string.
+ * 将日期字符串格式化为本地化可读字符串。
+ */
 const formatDate = (d: string | null) => !d ? '-' : new Date(d).toLocaleString()
 
+// ---- Lifecycle / 生命周期 ----
+
+/** Load cards on component mount / 组件挂载时加载卡片列表 */
 onMounted(() => loadCards())
 </script>
 

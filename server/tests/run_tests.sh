@@ -1,10 +1,24 @@
 #!/bin/bash
-# 测试套件快速运行脚本
-# Quick Test Suite Runner
+# =============================================================================
+# GraphForge 测试套件快速运行脚本
+# Quick Test Suite Runner for GraphForge
+#
+# 该脚本提供交互式菜单，用于运行不同类型的测试套件：
+#   - 快速验证 (verify_quick.py) - 无需外部依赖
+#   - 领域优化验证 (test_domain_optimization.py)
+#   - 文档管理功能测试
+#   - 图谱 API 测试
+#   - 标准 pytest 测试 (单元/集成/API)
+#   - 全部独立测试
+#
+# Usage:
+#   cd server/tests && bash run_tests.sh
+# =============================================================================
 
 set -e
 
-TESTS_DIR="/home/yuye/Resporitory/POW_AI/server/tests"
+# Dynamically determine the tests directory based on script location
+TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$TESTS_DIR"
 
 echo "=================================="

@@ -56,6 +56,26 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Status.vue - Job Status Checker View
+ * 任务状态查询视图
+ *
+ * Purpose / 功能说明:
+ *   Simple job status checker that retrieves and displays processing job information
+ *   by job ID. Reads the `jobId` query parameter from the URL on mount for deep-linking.
+ *   Displays job status (with color-coded tag), circular progress indicator,
+ *   and raw JSON views for statistics and full results.
+ *   简单的任务状态查询工具，通过任务 ID 检索并展示处理任务信息。
+ *   挂载时从 URL 查询参数中读取 `jobId` 以支持深度链接。
+ *   显示任务状态（彩色标签）、圆形进度指示器，
+ *   以及统计信息和完整结果的 JSON 预览。
+ *
+ * Status types / 状态类型映射:
+ *   completed -> success (green) / 完成 -> 成功（绿色）
+ *   processing -> warning (amber) / 处理中 -> 警告（琥珀色）
+ *   pending    -> info (blue)     / 待处理 -> 信息（蓝色）
+ *   failed     -> error (red)     / 失败 -> 错误（红色）
+ */
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -67,21 +87,59 @@ const { t } = useI18n()
 const route = useRoute()
 const message = useMessage()
 
+// ---- Reactive State / 响应式状态 ----
+
+/**
+ * Job ID from either the URL query param or user input.
+ * Initialized from route.query.jobId to support direct links and auto-check on mount.
+ * 任务 ID，来自 URL 查询参数或用户输入。
+ * 从 route.query.jobId 初始化以支持直接链接访问和挂载时自动查询。
+ */
 const jobId = ref((route.query.jobId as string) || '')
+
+/** Whether a status check request is in progress / 状态查询请求是否进行中 */
 const checking = ref(false)
+
+/** The full job status response from the API / 从 API 获取的完整任务状态响应 */
 const statusData = ref<any>(null)
 
-const getStatusType = (s: string) => ({ completed: 'success', processing: 'warning', pending: 'info', failed: 'error' } as any)[s] || 'default'
+// ---- Functions / 函数 ----
+
+/**
+ * Map a job status string to a naive-ui tag type for color coding.
+ * 将任务状态字符串映射到 naive-ui 标签类型以实现颜色编码。
+ */
+const getStatusType = (s: string) =>
+  ({ completed: 'success', processing: 'warning', pending: 'info', failed: 'error' } as any)[s] || 'default'
+
+/**
+ * Translate a status string using i18n, falling back to the raw string.
+ * 使用 i18n 翻译状态字符串，找不到时返回原始字符串。
+ */
 const getStatusText = (s: string) => t(`status.${s}`) || s
 
+/**
+ * Fetch job status from the API by the current jobId.
+ * 通过当前的 jobId 从 API 获取任务状态。
+ */
 const checkStatus = async () => {
   if (!jobId.value.trim()) { message.warning(t('status.job_id_help')); return }
   checking.value = true
-  try { statusData.value = await getJobStatus(jobId.value); message.success('查询成功') }
-  catch { message.error(t('status.fetch_error')); statusData.value = null }
-  finally { checking.value = false }
+  try {
+    statusData.value = await getJobStatus(jobId.value)
+    message.success('查询成功')
+  } catch {
+    message.error(t('status.fetch_error'))
+    statusData.value = null
+  } finally { checking.value = false }
 }
 
+// ---- Lifecycle / 生命周期 ----
+
+/**
+ * Auto-check status on mount if a jobId was provided via the URL query parameter.
+ * 如果在 URL 查询参数中提供了 jobId，则在挂载时自动查询状态。
+ */
 onMounted(() => { if (jobId.value) checkStatus() })
 </script>
 

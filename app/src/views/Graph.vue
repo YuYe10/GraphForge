@@ -249,6 +249,26 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Graph.vue - 图谱可视化视图 / Graph Visualization View
+ *
+ * 【功能 / Functionality】
+ * 1. Cytoscape.js 知识图谱渲染 / Cytoscape.js knowledge graph rendering
+ * 2. 节点/关系 CRUD 操作 / Node & edge CRUD operations
+ * 3. 右键上下文菜单 / Right-click context menu
+ * 4. 节点搜索定位 / Node search and focus
+ * 5. 多布局切换（层级/圆形/网格/同心圆/力导向）
+ *    / Multiple layout switching (dagre/circle/grid/concentric/cose)
+ * 6. 文档筛选与深度控制 / Document filtering with depth control
+ * 7. 缩放/平移/视图重置 / Zoom, pan, and view reset
+ * 8. PNG 导出 / PNG export
+ *
+ * 【角色 / Role】
+ * 核心交互式知识图谱可视化页面，提供图形化的节点-关系探索和编辑能力。
+ * Core interactive knowledge graph page with graphical node-relationship
+ * exploration and editing capabilities.
+ */
+
 import { ref, nextTick, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -264,6 +284,7 @@ import type { Core, ElementDefinition } from 'cytoscape'
 import dagre from 'cytoscape-dagre'
 import { getGraphData, getDocumentGraph, listDocuments, createNode, updateNode, deleteNode, createEdge, deleteEdge } from '@/api/services'
 
+// 注册 dagre 层级布局插件 / Register dagre hierarchical layout plugin
 cytoscape.use(dagre)
 
 const { t } = useI18n()
@@ -272,41 +293,42 @@ const dialog = useDialog()
 const route = useRoute()
 const router = useRouter()
 
-const nodeLimit = ref(100)
-const documentDepth = ref(2)
-const currentDocumentId = ref<string | null>(null)
-const documentOptions = ref<Array<{ label: string; value: string }>>([])
-const loading = ref(false)
-const graphContainer = ref<HTMLElement | null>(null)
-const graphData = ref<{ nodes: ElementDefinition[]; edges: ElementDefinition[] } | null>(null)
-const layoutType = ref('dagre')
-const searchQuery = ref('')
-const searchResults = ref<Array<{ id: string; label: string; type: string }>>([])
-const selectedNode = ref<{ id: string; label: string; properties: Record<string, any> } | null>(null)
-const showNodeDetail = ref(false)
-const showNodeEditModal = ref(false)
-const showNodeCreateModal = ref(false)
-const showEdgeCreateModal = ref(false)
-const contextMenuVisible = ref(false)
-const contextMenuPosition = ref({ x: 0, y: 0 })
-const contextMenuType = ref<'node' | 'edge' | 'canvas'>('canvas')
-const contextMenuTarget = ref<any>(null)
+// ===========================================================================
+// 响应式状态 / Reactive State
+// ===========================================================================
+
+// -- 图谱数据与 Cytoscape 实例 / Graph data & Cytoscape instance --------------
+
+/** Cytoscape 核心实例引用（非响应式，由 renderGraph 创建和管理） */
 let cy: Core | null = null
 
-// Legend
-const legendItems = [
-  { label: '概念 (Concept)', color: '#3b82f6' },
-  { label: '文档 (Document)', color: '#1e293b' },
-  { label: '实体 (Entity)', color: '#f59e0b' },
-  { label: '文本块 (Chunk)', color: '#8b5cf6' },
-  { label: '其他 (Other)', color: '#10b981' }
-]
+/** DOM 容器引用，用于挂载 Cytoscape / DOM container ref for mounting Cytoscape */
+const graphContainer = ref<HTMLElement | null>(null)
 
-// Forms
-const nodeEditForm = ref({ id: '', labels: [] as string[], properties: {} as Record<string, any> })
-const nodeCreateForm = ref({ labels: ['Concept'], properties: { name: '' } as Record<string, any> })
-const edgeCreateForm = ref({ source: '', target: '', type: 'RELATES_TO', properties: {} as Record<string, any> })
+/** 图谱原始数据（节点和边列表） / Raw graph data (nodes & edges arrays) */
+const graphData = ref<{ nodes: ElementDefinition[]; edges: ElementDefinition[] } | null>(null)
 
+/** 数据加载中状态 / Data loading state */
+const loading = ref(false)
+
+// -- 控制参数 / Control parameters -------------------------------------------
+
+/** 最大节点加载数 / Maximum node count to load */
+const nodeLimit = ref(100)
+
+/** 文档筛选深度（仅筛选模式可用） / Document filter depth (filter mode only) */
+const documentDepth = ref(2)
+
+/** 当前筛选的文档 ID / Currently filtered document ID */
+const currentDocumentId = ref<string | null>(null)
+
+/** 文档选项列表（用于筛选下拉框） / Document option list for filter select */
+const documentOptions = ref<Array<{ label: string; value: string }>>([])
+
+/** 当前布局类型 / Current layout type */
+const layoutType = ref('dagre')
+
+/** 可用布局选项 / Available layout options */
 const layoutOptions = [
   { label: '层级布局', value: 'dagre' },
   { label: '圆形布局', value: 'circle' },
@@ -315,7 +337,115 @@ const layoutOptions = [
   { label: '力导向', value: 'cose' }
 ]
 
-// Search
+// -- 搜索 / Search -----------------------------------------------------------
+
+/** 搜索关键词 / Search query text */
+const searchQuery = ref('')
+
+/** 搜索结果列表 / Search result items (id, label, type) */
+const searchResults = ref<Array<{ id: string; label: string; type: string }>>([])
+
+// -- 选中状态 / Selection state -----------------------------------------------
+
+/** 当前选中的节点详情 / Currently selected node details */
+const selectedNode = ref<{ id: string; label: string; properties: Record<string, any> } | null>(null)
+
+/** 控制节点详情抽屉的显示 / Controls node detail drawer visibility */
+const showNodeDetail = ref(false)
+
+// -- 上下文菜单 / Context menu ------------------------------------------------
+
+/** 上下文菜单是否可见 / Whether context menu is visible */
+const contextMenuVisible = ref(false)
+
+/** 上下文菜单位置（像素坐标） / Context menu position (pixel coords) */
+const contextMenuPosition = ref({ x: 0, y: 0 })
+
+/** 上下文菜单触发的元素类型 / Target element type for context menu */
+const contextMenuType = ref<'node' | 'edge' | 'canvas'>('canvas')
+
+/** 上下文菜单的目标对象引用 / Reference to the target element */
+const contextMenuTarget = ref<any>(null)
+
+// -- CRUD 表单 / CRUD form state ---------------------------------------------
+
+/** 编辑节点弹窗可见 / Node edit modal visibility */
+const showNodeEditModal = ref(false)
+
+/** 创建节点弹窗可见 / Node create modal visibility */
+const showNodeCreateModal = ref(false)
+
+/** 创建关系弹窗可见 / Edge create modal visibility */
+const showEdgeCreateModal = ref(false)
+
+/** 节点编辑表单数据 / Node edit form model */
+const nodeEditForm = ref({ id: '', labels: [] as string[], properties: {} as Record<string, any> })
+
+/** 节点创建表单数据 / Node create form model */
+const nodeCreateForm = ref({ labels: ['Concept'], properties: { name: '' } as Record<string, any> })
+
+/** 关系创建表单数据 / Edge create form model */
+const edgeCreateForm = ref({ source: '', target: '', type: 'RELATES_TO', properties: {} as Record<string, any> })
+
+// ===========================================================================
+// 图例配置 / Legend Configuration
+// ===========================================================================
+
+/**
+ * 节点类型图例 / Node type legend
+ * 定义了不同节点类型对应的颜色和显示标签，与 Cytoscape stylesheet 保持一致。
+ * Defines colors and labels for each node type, matching the Cytoscape stylesheet.
+ */
+const legendItems = [
+  { label: '概念 (Concept)', color: '#3b82f6' },
+  { label: '文档 (Document)', color: '#1e293b' },
+  { label: '实体 (Entity)', color: '#f59e0b' },
+  { label: '文本块 (Chunk)', color: '#8b5cf6' },
+  { label: '其他 (Other)', color: '#10b981' }
+]
+
+// ===========================================================================
+// 计算属性 / Computed Properties
+// ===========================================================================
+
+/**
+ * 可用节点列表（用于创建关系时的选择器）
+ * Available node list for edge creation selectors.
+ * 从 graphData.nodes 映射为 {label, value} 格式。
+ * Mapped from graphData.nodes into {label, value} format.
+ */
+const availableNodes = computed(() => {
+  if (!graphData.value) return []
+  return graphData.value.nodes.map((n: any) => ({ label: n.data.label || n.data.id, value: n.data.id }))
+})
+
+/**
+ * 文档筛选模式下 Chunk 类型节点计数
+ * Chunk-type node count when a document filter is active.
+ * 同时检查 data.type 和 classes 字段以兼容不同后端数据格式。
+ * Checks both data.type and classes fields for backend format compatibility.
+ */
+const chunkCount = computed(() => {
+  if (!graphData.value) return 0
+  return graphData.value.nodes.filter((n: any) => {
+    const t = ((n.data.type || '') + (n.classes || '')).toLowerCase()
+    return t.includes('chunk')
+  }).length
+})
+
+// ===========================================================================
+// 搜索功能 / Search Functionality
+// ===========================================================================
+
+/**
+ * 处理搜索输入 / Handle search query input
+ *
+ * 在当前图谱数据中按节点标签模糊搜索，最多返回 8 条结果。
+ * Performs fuzzy search on node labels within the current graph data,
+ * returning at most 8 results.
+ *
+ * @param query - 搜索关键词 / Search query string
+ */
 const handleSearch = (query: string) => {
   if (!query.trim() || !graphData.value) {
     searchResults.value = []
@@ -328,22 +458,44 @@ const handleSearch = (query: string) => {
     .map((n: any) => ({ id: n.data.id, label: n.data.label, type: n.data.type || 'Unknown' }))
 }
 
+/**
+ * 聚焦到指定节点 / Focus camera on a specific node
+ *
+ * 1. 使用 cy.animate() 平滑平移/缩放到目标节点
+ * 2. 临时高亮节点边框（1.5s 后恢复）
+ * 3. 清空搜索结果和搜索框
+ *
+ * @param nodeId - 目标节点 ID / Target node ID
+ */
 const focusNode = (nodeId: string) => {
   if (!cy) return
   const node = cy.getElementById(nodeId)
   if (node.length > 0) {
+    // 将视口居中于该节点并放大到 2x / Center viewport on node and zoom to 2x
     cy.animate({ center: { eles: node }, zoom: 2, duration: 500 })
+    // 临时高亮边框 / Temporary border highlight
     node.animate({
       style: { 'border-width': 6, 'border-color': '#6366f1' },
       duration: 300
     })
+    // 1.5 秒后恢复默认样式 / Restore default style after 1.5s
     setTimeout(() => { node.animate({ style: { 'border-width': 3, 'border-color': '#fff' }, duration: 300 }) }, 1500)
   }
+  // 清空搜索状态 / Clear search state
   searchResults.value = []
   searchQuery.value = ''
 }
 
-// Load data
+// ===========================================================================
+// 数据加载 / Data Loading
+// ===========================================================================
+
+/**
+ * 加载文档列表（用于筛选下拉框）
+ * Load document list for the filter dropdown.
+ * 组件挂载时自动调用，静默失败（catch 为空）。
+ * Auto-invoked on mount; failures are silent.
+ */
 const loadDocuments = async () => {
   try {
     const result = await listDocuments(0, 100)
@@ -352,19 +504,39 @@ const loadDocuments = async () => {
   } catch { /* silent */ }
 }
 
+/**
+ * 处理文档筛选变更 / Handle document filter change
+ *
+ * 更新 URL query 参数并重新加载图谱。
+ * Updates URL query parameter and reloads the graph.
+ *
+ * @param value - 选中的文档 ID 或 null / Selected document ID or null
+ */
 const handleDocumentChange = async (value: string | null) => {
   currentDocumentId.value = value
   await router.replace({ path: '/graph', query: value ? { doc_id: value } : {} })
   await loadGraph()
 }
 
+/**
+ * 加载图谱数据 / Load graph data from API
+ *
+ * 根据文档筛选状态决定调用哪个 API：
+ * - 有文档筛选 → getDocumentGraph(docId, depth) 获取子图
+ * - 无文档筛选 → getGraphData(limit) 获取全图
+ *
+ * 对后端返回的节点和边数据进行标准化转换，适配 Cytoscape 的 ElementDefinition 格式。
+ * Standardizes backend node/edge data into Cytoscape's ElementDefinition format.
+ */
 const loadGraph = async () => {
   loading.value = true
   try {
+    // 优先使用 URL 中的 doc_id 参数 / Prefer doc_id from URL query
     const routeDocId = (route.query.doc_id as string) || null
     currentDocumentId.value = currentDocumentId.value || routeDocId
     const docId = currentDocumentId.value
 
+    // 根据是否筛选文档选择 API / Choose API based on document filter
     const result = docId
       ? await getDocumentGraph(docId, documentDepth.value)
       : await getGraphData(nodeLimit.value)
@@ -375,6 +547,8 @@ const loadGraph = async () => {
     let edges: ElementDefinition[] = []
 
     if (result.nodes && result.edges) {
+      // 节点数据转换：映射 id/label/type/degree + 原生属性 + classes
+      // Node data transformation: map id/label/type/degree + raw properties + classes
       nodes = result.nodes.map((node: any) => ({
         data: {
           id: node.id,
@@ -383,9 +557,13 @@ const loadGraph = async () => {
           degree: node.degree || 0,
           ...node.properties
         },
+        // classes 用于 Cytoscape 的选择器样式匹配（如 node.Concept）
+        // classes used for Cytoscape selector-based styling (e.g. node.Concept)
         classes: node.labels ? node.labels.join(' ') : (node.type || 'Unknown')
       }))
 
+      // 边数据转换：生成唯一 ID，映射 source/target/label/type + 原生属性
+      // Edge data transformation: generate unique ID, map source/target/label/type + properties
       edges = result.edges.map((edge: any) => ({
         data: {
           id: edge.id || `${edge.source}-${edge.target}-${edge.type}`,
@@ -402,6 +580,7 @@ const loadGraph = async () => {
 
     if (nodes.length === 0) { message.warning('图谱中未找到节点'); return }
 
+    // 等待 DOM 更新后再渲染 Cytoscape / Wait for DOM update before rendering
     await nextTick()
     renderGraph()
     message.success(`已加载 ${nodes.length} 个节点和 ${edges.length} 个关系`)
@@ -411,15 +590,34 @@ const loadGraph = async () => {
   } finally { loading.value = false }
 }
 
+// ===========================================================================
+// Cytoscape 渲染 / Cytoscape Rendering
+// ===========================================================================
+
+/**
+ * 渲染图谱 / Render the graph using Cytoscape.js
+ *
+ * 核心渲染函数，执行以下操作：
+ * 1. 销毁旧的 Cytoscape 实例 / Destroy old Cytoscape instance
+ * 2. 定义样式表（节点按类型着色、尺寸按度映射、边箭头和标签样式）
+ *    / Define stylesheet (node color by type, size by degree, edge arrows & labels)
+ * 3. 初始化 Cytoscape 实例 / Initialize Cytoscape instance
+ * 4. 绑定交互事件（点击、悬停、右键菜单） / Bind interaction events (tap, hover, context menu)
+ */
 const renderGraph = () => {
   if (!graphContainer.value || !graphData.value) return
+  // 销毁旧实例，防止多次创建导致的内存泄漏和事件重复绑定
+  // Destroy old instance to prevent memory leaks and duplicate event bindings
   if (cy) cy.destroy()
 
+  // 默认节点样式 / Default node style
   const nodeStyles = {
     selector: 'node',
     style: {
       'background-color': '#10b981',
       'label': 'data(label)',
+      // 节点尺寸根据 degree（连接数）动态映射：degree 0→28px, 50→60px
+      // Node size mapped from degree: degree 0→28px, degree 50→60px
       'width': 'mapData(degree, 0, 50, 28, 60)',
       'height': 'mapData(degree, 0, 50, 28, 60)',
       'text-valign': 'bottom',
@@ -429,6 +627,7 @@ const renderGraph = () => {
       'font-weight': 600,
       'font-family': 'Inter, Noto Serif SC, sans-serif',
       'color': '#334155',
+      // 文字背景（圆角矩形标签底） / Text background (rounded rectangle label bg)
       'text-background-color': '#ffffff',
       'text-background-opacity': 0.85,
       'text-background-padding': '3px',
@@ -445,13 +644,18 @@ const renderGraph = () => {
     elements: [...graphData.value.nodes, ...graphData.value.edges],
     style: [
       nodeStyles,
+      // 按节点类型着色 / Per-type node coloring
       { selector: 'node.Concept', style: { 'background-color': '#3b82f6' } },
       { selector: 'node.Document', style: { 'background-color': '#1e293b', 'shape': 'rectangle' } },
       { selector: 'node.Entity', style: { 'background-color': '#f59e0b' } },
       { selector: 'node.Chunk', style: { 'background-color': '#8b5cf6', 'shape': 'diamond' } },
+      // 选中 / Selected state
       { selector: 'node:selected', style: { 'border-width': 5, 'border-color': '#6366f1', 'shadow-color': '#6366f1', 'shadow-blur': 12, 'shadow-opacity': 0.5 } },
+      // 高亮（点击关联元素）/ Highlighted (click-connected elements)
       { selector: 'node.highlighted', style: { 'border-width': 4, 'border-color': '#6366f1', 'shadow-color': '#6366f1', 'shadow-blur': 16, 'shadow-opacity': 0.6 } },
+      // 暗淡（非关联元素）/ Dimmed (non-connected elements)
       { selector: 'node.dimmed', style: { 'opacity': 0.2, 'background-color': '#cbd5e1' } },
+      // 边默认样式 / Default edge style (bezier curve with arrow)
       {
         selector: 'edge',
         style: {
@@ -464,41 +668,50 @@ const renderGraph = () => {
           'transition-duration': '0.2s'
         } as any
       },
+      // 边选中状态 / Edge selected state
       { selector: 'edge:selected', style: { 'width': 4, 'line-color': '#6366f1', 'target-arrow-color': '#6366f1' } },
+      // 边高亮 / Edge highlighted state
       { selector: 'edge.highlighted', style: { 'width': 3, 'line-color': '#6366f1', 'target-arrow-color': '#6366f1' } },
+      // 边暗淡 / Edge dimmed state
       { selector: 'edge.dimmed', style: { 'opacity': 0.08 } }
     ],
     layout: {
       name: layoutType.value,
-      rankDir: 'TB',
-      spacingFactor: 1.6,
-      animate: true,
+      rankDir: 'TB',                    // dagre 层级方向：上到下 / Dagre rank direction: top-to-bottom
+      spacingFactor: 1.6,               // 节点间距 / Node spacing factor
+      animate: true,                    // 启用布局过渡动画 / Enable layout transition animation
       animationDuration: 600,
       animationEasing: 'ease-out'
     } as any
   })
 
-  // Node click
+  // -----------------------------------------------------------------------
+  // 事件绑定 / Event Bindings
+  // -----------------------------------------------------------------------
+
+  /** 点击节点：打开详情抽屉并高亮关联子图 */
+  /** Click node: open detail drawer and highlight connected subgraph */
   cy.on('tap', 'node', (evt: any) => {
     const node = evt.target
     selectedNode.value = { id: node.id(), label: node.data('label'), properties: node.data() }
     showNodeDetail.value = true
 
-    // Highlight connected
+    // 高亮关联：将全部元素设为 dimmed，再将当前节点及其连接节点和边设为 highlighted
+    // Highlight connected: dim all elements, then highlight the node and its neighbors
     const connected = node.connectedEdges().connectedNodes().add(node)
     cy!.elements().addClass('dimmed')
     connected.removeClass('dimmed').addClass('highlighted')
     node.connectedEdges().removeClass('dimmed').addClass('highlighted')
   })
 
-  // Click background to reset
+  /** 点击画布空白处：重置高亮 / Click canvas background: reset highlights */
   cy.on('tap', (evt: any) => {
     if (evt.target === cy) {
       cy!.elements().removeClass('dimmed').removeClass('highlighted')
     }
   })
 
-  // Node hover
+  /** 节点悬停：变手型指针 + 边框高亮 / Node hover: pointer cursor + border highlight */
   cy.on('mouseover', 'node', (evt: any) => {
     document.body.style.cursor = 'pointer'
     evt.target.animate({ style: { 'border-color': '#6366f1', 'border-width': 4 }, duration: 150 })
@@ -510,7 +723,7 @@ const renderGraph = () => {
     }
   })
 
-  // Edge hover
+  /** 边悬停：加粗变色 / Edge hover: thicken and change color */
   cy.on('mouseover', 'edge', (evt: any) => {
     evt.target.animate({ style: { 'width': 4, 'line-color': '#6366f1' }, duration: 150 })
   })
@@ -520,7 +733,8 @@ const renderGraph = () => {
     }
   })
 
-  // Context menu
+  /** 右键节点：显示包含编辑/删除选项的上下文菜单 */
+  /** Right-click node: show context menu with edit/delete options */
   cy.on('cxttap', 'node', (evt: any) => {
     evt.preventDefault()
     const node = evt.target
@@ -530,6 +744,7 @@ const renderGraph = () => {
     contextMenuVisible.value = true
   })
 
+  /** 右键边：显示删除选项 / Right-click edge: show delete option */
   cy.on('cxttap', 'edge', (evt: any) => {
     evt.preventDefault()
     const edge = evt.target
@@ -539,6 +754,7 @@ const renderGraph = () => {
     contextMenuVisible.value = true
   })
 
+  /** 右键画布：显示创建选项 / Right-click canvas: show create options */
   cy.on('cxttap', (evt: any) => {
     if (evt.target === cy) {
       evt.preventDefault()
@@ -549,21 +765,53 @@ const renderGraph = () => {
     }
   })
 
+  /** 点击任意位置关闭上下文菜单 / Click anywhere to close context menu */
   cy.on('tap', () => { contextMenuVisible.value = false })
 }
 
-// Controls
+// ===========================================================================
+// 视图控制 / View Controls
+// ===========================================================================
+
+/** 放大 / Zoom in (130%) */
 const zoomIn = () => { if (cy) cy.animate({ zoom: (cy.zoom() * 1.3), duration: 300 }) }
+
+/** 缩小 / Zoom out (70%) */
 const zoomOut = () => { if (cy) cy.animate({ zoom: (cy.zoom() * 0.7), duration: 300 }) }
+
+/** 自适应适配所有元素 / Fit view to all elements with 50px padding */
 const fitView = () => { if (cy) cy.animate({ fit: { eles: cy.elements(), padding: 50 }, duration: 500 }) }
+
+/** 重置缩放和平移 / Reset zoom to 1x and center */
 const resetView = () => { if (cy) { cy.zoom(1); cy.center() } }
 
+// ===========================================================================
+// 布局切换 / Layout Switching
+// ===========================================================================
+
+/**
+ * 切换图谱布局 / Change graph layout
+ * 可选的布局类型在 layoutOptions 中定义。
+ * Available layout types are defined in layoutOptions.
+ */
 const handleLayoutChange = () => {
   if (cy && graphData.value) {
     cy.layout({ name: layoutType.value, animate: true, animationDuration: 600, spacingFactor: 1.6 } as any).run()
   }
 }
 
+// ===========================================================================
+// 导出 / Export
+// ===========================================================================
+
+/**
+ * 导出图谱为 PNG 图片 / Export graph as PNG image
+ *
+ * 使用 Cytoscape 的 png() 方法生成高分辨率（3x）PNG，
+ * 然后通过动态创建的 <a> 标签触发下载。
+ * Uses Cytoscape's png() method to generate a high-resolution (3x) PNG,
+ * then triggers download via a dynamically created <a> element.
+ */
 const exportGraph = () => {
   if (!cy) return
   const png = cy.png({ full: true, scale: 3, bg: '#ffffff' })
@@ -574,13 +822,28 @@ const exportGraph = () => {
   message.success('图谱已导出为 PNG')
 }
 
+// ===========================================================================
+// 文档筛选重置 / Document Filter Reset
+// ===========================================================================
+
+/**
+ * 重置文档筛选 / Reset document filter to show full graph
+ * 清除 currentDocumentId 和 URL query 参数，重新加载全图。
+ * Clears currentDocumentId and URL query param, reloads full graph.
+ */
 const resetDocumentFilter = async () => {
   currentDocumentId.value = null
   await router.replace({ path: '/graph' })
   await loadGraph()
 }
 
-// CRUD handlers (same logic as original)
+// ===========================================================================
+// CRUD: 节点/关系操作处理器 / Node & Edge Operation Handlers
+// ===========================================================================
+
+// -- 编辑节点 / Edit node ---------------------------------------------------
+
+/** 打开节点编辑弹窗（从上下文菜单） / Open node edit modal (from context menu) */
 const handleEditNode = () => {
   if (!contextMenuTarget.value) return
   const t = contextMenuTarget.value
@@ -589,12 +852,42 @@ const handleEditNode = () => {
   contextMenuVisible.value = false
 }
 
+/** 提交节点编辑 / Submit node edit changes to API */
+const submitNodeEdit = async () => {
+  try {
+    await updateNode(nodeEditForm.value.id, {
+      labels: nodeEditForm.value.labels.length > 0 ? nodeEditForm.value.labels : undefined,
+      properties: nodeEditForm.value.properties
+    })
+    message.success('已更新')
+    showNodeEditModal.value = false
+    await loadGraph()
+  } catch (e: any) { message.error('更新失败: ' + (e.response?.data?.detail || e.message)) }
+}
+
+// -- 创建节点 / Create node -------------------------------------------------
+
+/** 打开创建节点弹窗 / Open node creation modal */
 const handleCreateNode = () => {
   nodeCreateForm.value = { labels: ['Concept'], properties: { name: '' } }
   showNodeCreateModal.value = true
   contextMenuVisible.value = false
 }
 
+/** 提交节点创建 / Submit node creation to API */
+const submitNodeCreate = async () => {
+  try {
+    if (!nodeCreateForm.value.properties.name) { message.error('请输入节点名称'); return }
+    await createNode({ labels: nodeCreateForm.value.labels, properties: nodeCreateForm.value.properties })
+    message.success('已创建')
+    showNodeCreateModal.value = false
+    await loadGraph()
+  } catch (e: any) { message.error('创建失败: ' + (e.response?.data?.detail || e.message)) }
+}
+
+// -- 删除节点 / Delete node -------------------------------------------------
+
+/** 删除节点（带确认对话框，从上下文菜单触发） / Delete node with confirmation dialog */
 const handleDeleteNode = () => {
   if (!contextMenuTarget.value) return
   dialog.warning({
@@ -609,28 +902,10 @@ const handleDeleteNode = () => {
   contextMenuVisible.value = false
 }
 
-const submitNodeEdit = async () => {
-  try {
-    await updateNode(nodeEditForm.value.id, {
-      labels: nodeEditForm.value.labels.length > 0 ? nodeEditForm.value.labels : undefined,
-      properties: nodeEditForm.value.properties
-    })
-    message.success('已更新')
-    showNodeEditModal.value = false
-    await loadGraph()
-  } catch (e: any) { message.error('更新失败: ' + (e.response?.data?.detail || e.message)) }
-}
+// -- 创建关系 / Create edge -------------------------------------------------
 
-const submitNodeCreate = async () => {
-  try {
-    if (!nodeCreateForm.value.properties.name) { message.error('请输入节点名称'); return }
-    await createNode({ labels: nodeCreateForm.value.labels, properties: nodeCreateForm.value.properties })
-    message.success('已创建')
-    showNodeCreateModal.value = false
-    await loadGraph()
-  } catch (e: any) { message.error('创建失败: ' + (e.response?.data?.detail || e.message)) }
-}
-
+/** 打开创建关系弹窗（如果从节点上下文菜单触发，自动填入源节点） */
+/** Open edge creation modal; auto-fill source if triggered from node context menu */
 const handleCreateEdge = () => {
   if (contextMenuType.value === 'node' && contextMenuTarget.value) {
     edgeCreateForm.value.source = contextMenuTarget.value.id
@@ -642,6 +917,31 @@ const handleCreateEdge = () => {
   contextMenuVisible.value = false
 }
 
+/** 提交关系创建 / Submit edge creation to API */
+const submitEdgeCreate = async () => {
+  try {
+    if (!edgeCreateForm.value.source || !edgeCreateForm.value.target) { message.error('请选择源和目标节点'); return }
+    if (!edgeCreateForm.value.type) { message.error('请输入关系类型'); return }
+    await createEdge({
+      source: edgeCreateForm.value.source,
+      target: edgeCreateForm.value.target,
+      type: edgeCreateForm.value.type,
+      properties: edgeCreateForm.value.properties
+    })
+    message.success('已创建')
+    showEdgeCreateModal.value = false
+    await loadGraph()
+  } catch (e: any) { message.error('创建失败: ' + (e.response?.data?.detail || e.message)) }
+}
+
+// -- 删除关系 / Delete edge -------------------------------------------------
+
+/**
+ * 删除关系（带确认对话框，从上下文菜单触发）
+ * Delete edge with confirmation dialog (triggered from context menu)
+ * 使用 source-target-type 三元组唯一标识一条关系。
+ * Uses source-target-type triple as the unique edge identifier.
+ */
 const handleDeleteEdge = () => {
   if (!contextMenuTarget.value) return
   const et = contextMenuTarget.value
@@ -657,33 +957,30 @@ const handleDeleteEdge = () => {
   contextMenuVisible.value = false
 }
 
-const submitEdgeCreate = async () => {
-  try {
-    if (!edgeCreateForm.value.source || !edgeCreateForm.value.target) { message.error('请选择源和目标节点'); return }
-    if (!edgeCreateForm.value.type) { message.error('请输入关系类型'); return }
-    await createEdge({ source: edgeCreateForm.value.source, target: edgeCreateForm.value.target, type: edgeCreateForm.value.type, properties: edgeCreateForm.value.properties })
-    message.success('已创建')
-    showEdgeCreateModal.value = false
-    await loadGraph()
-  } catch (e: any) { message.error('创建失败: ' + (e.response?.data?.detail || e.message)) }
-}
+// ===========================================================================
+// 侦听器 / Watchers
+// ===========================================================================
 
-const availableNodes = computed(() => {
-  if (!graphData.value) return []
-  return graphData.value.nodes.map((n: any) => ({ label: n.data.label || n.data.id, value: n.data.id }))
-})
-
-const chunkCount = computed(() => {
-  if (!graphData.value) return 0
-  return graphData.value.nodes.filter((n: any) => {
-    const t = ((n.data.type || '') + (n.classes || '')).toLowerCase()
-    return t.includes('chunk')
-  }).length
-})
-
+/**
+ * 监听路由 query 中 doc_id 的变化
+ * Watch for doc_id changes in route query.
+ * 当用户通过外部链接或浏览器前进/后退切换文档筛选时，自动加载对应子图。
+ * Auto-loads the corresponding subgraph when document filter changes via
+ * external links or browser navigation.
+ */
 watch(() => route.query.doc_id, () => loadGraph())
 
+// ===========================================================================
+// 生命周期钩子 / Lifecycle Hooks
+// ===========================================================================
+
+/** 组件挂载时加载文档列表和图谱数据 */
 onMounted(() => { loadDocuments(); loadGraph() })
+
+/**
+ * 组件卸载时销毁 Cytoscape 实例，防止内存泄漏
+ * Destroy Cytoscape instance on unmount to prevent memory leaks.
+ */
 onUnmounted(() => { if (cy) cy.destroy() })
 </script>
 

@@ -90,23 +90,27 @@
         </div>
 
         <n-divider>文档预览</n-divider>
-        <!-- PDF Preview -->
+        <!-- PDF Preview: 使用 iframe 直接嵌入 PDF URL -->
+        <!-- PDF Preview: Embed PDF via iframe with browser-native viewer -->
         <div v-if="isPDF" class="preview-container">
           <iframe :src="previewUrl" class="preview-frame" title="预览" />
         </div>
-        <!-- Markdown Preview -->
+        <!-- Markdown Preview: 使用 marked 库渲染为 HTML -->
+        <!-- Markdown Preview: Render via marked library into styled HTML -->
         <div v-else-if="isMarkdown" class="preview-container">
           <n-spin :show="previewLoading" />
           <div v-if="!previewLoading && previewContent" class="markdown-body" v-html="previewContent"></div>
           <div v-else-if="!previewLoading && previewError" class="empty-msg">{{ previewError }}</div>
         </div>
-        <!-- TXT Preview -->
+        <!-- TXT Preview: 纯文本以 <pre> 展示，保留空白格式 -->
+        <!-- TXT Preview: Render plain text inside <pre> to preserve whitespace -->
         <div v-else-if="isTXT" class="preview-container">
           <n-spin :show="previewLoading" />
           <pre v-if="!previewLoading && previewContent" class="txt-body">{{ previewContent }}</pre>
           <div v-else-if="!previewLoading && previewError" class="empty-msg">{{ previewError }}</div>
         </div>
-        <!-- Word Preview (attempt iframe) -->
+        <!-- Word Preview: 尝试 iframe，附下载备用链接 -->
+        <!-- Word Preview: Attempt iframe rendering with a download fallback link -->
         <div v-else-if="isWord" class="preview-container">
           <iframe :src="previewUrl" class="preview-frame" title="预览" />
           <div class="preview-note">💡 如无法在线预览 Word 文档，可<a :href="previewUrl" download>点击下载</a>后查看</div>
@@ -119,6 +123,22 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Documents.vue - 文档管理视图 / Document Management View
+ *
+ * 【功能 / Functionality】
+ * 1. 文档列表展示（支持分页和排序）/ Document list with pagination and sorting
+ * 2. 文档详情弹窗 / Document detail modal
+ * 3. 文档预览（PDF 内嵌 iframe, Markdown 使用 marked 渲染, TXT 纯文本, Word 内嵌）
+ *    / Document preview (PDF via iframe, Markdown via marked, TXT plain text, Word via iframe)
+ * 4. 文档删除（带级联清理确认）/ Document deletion with cascade cleanup confirmation
+ * 5. 跳转到对应文档的图谱视图 / Navigation to document-specific graph view
+ *
+ * 【角色 / Role】
+ * 文档管理的核心视图，提供文档的 CRUD（仅 D 和 R）操作入口和在线预览功能。
+ * Core view for document management, providing read/delete operations and online preview.
+ */
+
 import { ref, computed, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMessage, useDialog, NButton, NTag, NIcon, NSpin } from 'naive-ui'
@@ -130,21 +150,71 @@ const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
 
+// ---------------------------------------------------------------------------
+// 响应式状态 / Reactive State
+// ---------------------------------------------------------------------------
+
+/** 数据加载状态 / Data loading state (for spin and disabled buttons) */
 const loading = ref(false)
+
+/** 文档列表数据 / Document list from the API */
 const documents = ref<DocumentListResponse['documents']>([])
-const pagination = ref({ page: 1, pageSize: 20, pageCount: 1, prefix: (info: any) => `共 ${info.itemCount} 条`, onChange: (p: number) => { pagination.value.page = p; loadDocuments() } })
+
+/**
+ * 分页配置 / Pagination configuration
+ * - page: 当前页码 / Current page number
+ * - pageSize: 每页条数 / Items per page
+ * - pageCount: 总页数 / Total pages (computed from API response)
+ * - prefix: 分页器前缀文本 / Paginator prefix text
+ * - onChange: 页码变更回调，自动重新加载 / Page change callback triggering reload
+ */
+const pagination = ref({
+  page: 1,
+  pageSize: 20,
+  pageCount: 1,
+  prefix: (info: any) => `共 ${info.itemCount} 条`,
+  onChange: (p: number) => { pagination.value.page = p; loadDocuments() }
+})
+
+/** 排序字段 / Sort field for document listing */
 const sortBy = ref<'created_at' | 'filename'>('created_at')
+
+/** 控制详情弹窗显示 / Controls detail modal visibility */
 const showDetailModal = ref(false)
+
+/** 当前选中的文档（从表格行点击） / Currently selected document row */
 const selectedDocument = ref<any>(null)
+
+/** 完整的文档详情数据 / Full document detail from API */
 const documentDetail = ref<DocumentDetail | null>(null)
+
+/**
+ * 文档预览 URL（计算属性）
+ * 根据选中文档的 ID 动态生成文件访问 URL。
+ * Computed preview URL derived from the selected document's ID.
+ */
 const previewUrl = computed(() => selectedDocument.value ? getDocumentFileUrl(selectedDocument.value.id) : '')
 
-// Preview state for non-PDF formats
+// ---------------------------------------------------------------------------
+// 非 PDF 格式的预览状态 / Preview state for non-PDF formats
+// (PDF 直接通过 iframe + URL 渲染，无需额外加载)
+// (PDF is rendered directly via iframe+URL, no extra loading needed)
+// ---------------------------------------------------------------------------
+
+/** 文本预览内容加载中 / Text preview content loading */
 const previewLoading = ref(false)
+
+/** 已渲染的文本预览内容 / Rendered text preview content */
 const previewContent = ref('')
+
+/** 预览错误信息 / Preview error message */
 const previewError = ref('')
 
-// Document type helpers
+// ---------------------------------------------------------------------------
+// 文档类型辅助计算属性 / Document Type Helper Computed Properties
+// ---------------------------------------------------------------------------
+
+/** 文档类型的小写形式 / Lowercased document kind for type checking */
 const docKind = computed(() => documentDetail.value?.kind?.toLowerCase() || '')
 const isPDF = computed(() => docKind.value === 'pdf')
 const isMarkdown = computed(() => docKind.value === 'md' || docKind.value === 'markdown')
@@ -152,16 +222,27 @@ const isTXT = computed(() => docKind.value === 'txt')
 const isWord = computed(() => docKind.value === 'word' || docKind.value === 'doc' || docKind.value === 'docx')
 const canPreview = computed(() => isPDF.value || isMarkdown.value || isTXT.value || isWord.value)
 
+// ---------------------------------------------------------------------------
+// 统计计算属性 / Stats Computed Properties
+// ---------------------------------------------------------------------------
+
+/** 总文档数 / Total document count */
 const totalDocuments = computed(() => documents.value.length)
+
+/** 已完成处理的文档数 / Completed processing count */
 const completedDocuments = computed(() => documents.value.filter(d => d.processing_status === 'completed').length)
+
+/** 待处理文档数 / Pending processing count */
 const pendingDocuments = computed(() => documents.value.filter(d => d.processing_status === 'uploaded').length)
 
+/** 顶部统计卡片配置 / Top stats card configuration */
 const statCards = computed(() => [
   { label: '总文档数', value: totalDocuments.value, icon: DocumentTextOutline, bg: 'linear-gradient(135deg, #3b82f6, #1e40af)' },
   { label: '已处理', value: completedDocuments.value, icon: CheckmarkCircleOutline, bg: 'linear-gradient(135deg, #10b981, #059669)' },
   { label: '待处理', value: pendingDocuments.value, icon: HourglassOutline, bg: 'linear-gradient(135deg, #f59e0b, #d97706)' }
 ])
 
+/** 文档处理统计明细（文本块、概念、论断、关系数） / Document processing statistics detail */
 const docStats = computed(() => {
   const s = documentDetail.value?.statistics
   return s ? [
@@ -172,6 +253,18 @@ const docStats = computed(() => {
   ] : []
 })
 
+// ---------------------------------------------------------------------------
+// 数据加载 / Data Loading
+// ---------------------------------------------------------------------------
+
+/**
+ * 加载文档列表 / Load document list from API
+ *
+ * 使用分页参数和排序字段请求文档列表，并更新 pageCount。
+ * Requests the document list with pagination and sort parameters, updating pageCount.
+ * skip = (page - 1) * pageSize 实现分页偏移。
+ * skip = (page - 1) * pageSize implements pagination offset.
+ */
 const loadDocuments = async () => {
   loading.value = true
   try {
@@ -183,19 +276,61 @@ const loadDocuments = async () => {
   finally { loading.value = false }
 }
 
-const formatFileSize = (b: number) => { if (!b) return '0 B'; const k = 1024; const sizes = ['B','KB','MB','GB']; const i = Math.floor(Math.log(b) / Math.log(k)); return Math.round(b / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i] }
+// ---------------------------------------------------------------------------
+// 工具函数 / Utility Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * 格式化文件大小 / Format file size to human-readable string
+ * @param b - 文件字节数 / File size in bytes
+ * @returns 格式化后的字符串，如 "1.23 MB" / Formatted string like "1.23 MB"
+ */
+const formatFileSize = (b: number) => {
+  if (!b) return '0 B'
+  const k = 1024
+  const sizes = ['B','KB','MB','GB']
+  const i = Math.floor(Math.log(b) / Math.log(k))
+  return Math.round(b / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+}
+
+/**
+ * 格式化时间戳 / Format timestamp to localized string
+ * @param t - ISO 时间字符串或 null / ISO time string or null
+ * @returns "YYYY/MM/DD HH:mm:ss" 格式或 "未知" / Formatted string or "未知"
+ */
 const formatTime = (t: string | null) => !t ? '未知' : new Date(t).toLocaleString('zh-CN')
+
+/**
+ * 获取文档类型对应的 Naive UI Tag 颜色 / Get tag color for document kind
+ * @param k - 文档类型标识 / Document kind identifier
+ * @returns Naive UI tag type ('error' | 'info' | 'warning' | 'success')
+ */
 const getKindColor = (k: string) => ({ pdf: 'error', md: 'info', txt: 'warning', word: 'success' } as any)[k] || 'default'
 
+// ---------------------------------------------------------------------------
+// 文档操作 / Document Operations
+// ---------------------------------------------------------------------------
+
+/**
+ * 查看文档详情 / View document detail in modal
+ *
+ * 1. 设置选中文档并显示弹窗 / Set selected document and show modal
+ * 2. 重置预览状态 / Reset preview state
+ * 3. 调用 API 获取完整详情 / Fetch full detail from API
+ * 4. 对 Markdown 和 TXT 类型额外加载文本预览内容 / For MD/TXT, also load text content
+ * @param doc - 文档对象（来自表格行） / Document object from table row
+ */
 const handleViewDocument = async (doc: any) => {
-  selectedDocument.value = doc; showDetailModal.value = true
-  // Reset preview state
+  selectedDocument.value = doc
+  showDetailModal.value = true
+  // 重置预览状态 / Reset preview loading/error/content
   previewLoading.value = false
   previewContent.value = ''
   previewError.value = ''
   try {
     documentDetail.value = await getDocumentDetail(doc.id)
-    // Fetch text content for Markdown and TXT previews
+    // 对 Markdown 和 TXT 类型，额外拉取文件内容用于客户端渲染
+    // For Markdown and TXT, fetch raw file content for client-side rendering
     const kind = documentDetail.value?.kind?.toLowerCase()
     if (kind === 'md' || kind === 'markdown' || kind === 'txt') {
       await loadTextPreview(doc.id, kind)
@@ -203,18 +338,31 @@ const handleViewDocument = async (doc: any) => {
   } catch (e: any) { message.error('加载详情失败') }
 }
 
+/**
+ * 加载文本类文档的预览内容 / Load text-based document preview content
+ *
+ * 对 Markdown 使用 marked.parse() 渲染为 HTML，TXT 直接保留纯文本。
+ * For Markdown, uses marked.parse() to render HTML; for TXT, keeps plain text.
+ *
+ * @param docId - 文档 ID / Document ID
+ * @param kind - 文档类型 / Document kind ('md' | 'markdown' | 'txt')
+ */
 const loadTextPreview = async (docId: string, kind: string) => {
   previewLoading.value = true
   previewError.value = ''
   previewContent.value = ''
   try {
+    // 从 uploads 目录获取原始文件 / Fetch raw file from uploads directory
     const url = `${API_BASE}/uploads/${docId}/file`
     const response = await fetch(url)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     const text = await response.text()
     if (kind === 'md' || kind === 'markdown') {
+      // Markdown: 使用 marked 库异步解析为 HTML
+      // Use marked library to asynchronously parse Markdown into HTML
       previewContent.value = await marked.parse(text)
     } else {
+      // TXT: 直接展示纯文本 / Display plain text directly
       previewContent.value = text
     }
   } catch (e: any) {
@@ -224,9 +372,20 @@ const loadTextPreview = async (docId: string, kind: string) => {
   }
 }
 
+/**
+ * 删除文档（带级联清理确认对话框） / Delete document with cascade cleanup confirmation
+ *
+ * 调用 deleteDocument API 会级联删除：
+ * - 上传目录中的原始文件 / Original file in upload directory
+ * - 文档对应的图谱节点及所有关联边 / Graph nodes and edges for this document
+ * - 被孤立（无边连接）的节点 / Orphan nodes left with no edges
+ *
+ * @param doc - 待删除的文档对象 / Document to delete
+ */
 const handleDeleteDocument = (doc: any) => {
   dialog.warning({
     title: '确认删除',
+    // 警告内容说明级联删除的范围 / Warning explaining cascade deletion scope
     content: `确定要删除文档 "${doc.filename}" 吗？此操作将同时删除：\n• 上传目录中的原始文件\n• 该文档的图谱节点及所有关联边\n• 被孤立（无边连接）的节点\n\n此操作不可撤销！`,
     positiveText: '确认删除',
     negativeText: '取消',
@@ -234,12 +393,14 @@ const handleDeleteDocument = (doc: any) => {
     onPositiveClick: async () => {
       try {
         const result = await deleteDocument(doc.id)
+        // 成功后显示详细清理结果 / Show detailed cleanup results after success
         message.success(
           `已删除 "${result.filename}"：文件${result.file_deleted ? '已' : '未'}删除，` +
           `${result.edges_deleted} 条边、${result.orphan_nodes_deleted} 个孤立节点已清理`
         )
         await loadDocuments()
       } catch (e: any) {
+        // 尝试提取后端返回的错误详情 / Attempt to extract backend error detail
         const errMsg = e?.response?.data?.detail || e?.message || '未知错误'
         message.error('删除失败: ' + errMsg)
       }
@@ -247,6 +408,16 @@ const handleDeleteDocument = (doc: any) => {
   })
 }
 
+// ---------------------------------------------------------------------------
+// 表格列定义 / DataTable Column Definitions
+// ---------------------------------------------------------------------------
+
+/**
+ * 文档列表的表格列配置
+ * Columns for the document list data table.
+ * 使用 Naive UI 的 h() 渲染函数实现自定义操作按钮列。
+ * Uses Naive UI's h() render function for custom action button column.
+ */
 const columns = [
   { title: '文件名', key: 'filename', width: 250, ellipsis: { tooltip: true } },
   { title: '类型', key: 'kind', width: 80, render: (r: any) => h(NTag, { type: getKindColor(r.kind) }, () => r.kind?.toUpperCase()) },
@@ -255,13 +426,21 @@ const columns = [
   { title: '概念', key: 'concept_count', width: 80, align: 'center' as const, render: (r: any) => h('span', { style: 'font-weight:700;color:#10b981' }, r.concept_count) },
   { title: '状态', key: 'processing_status', width: 90, render: (r: any) => h(NTag, { type: r.processing_status === 'completed' ? 'success' : 'warning' }, () => r.processing_status === 'completed' ? '已完成' : '待处理') },
   { title: '上传时间', key: 'created_at', width: 170, render: (r: any) => formatTime(r.created_at) },
-  { title: '操作', key: 'actions', width: 260, fixed: 'right' as const, render: (r: any) => h('div', { style: 'display:flex;gap:8px' }, [
-    h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => handleViewDocument(r) }, () => '查看'),
-    h(NButton, { size: 'small', type: 'info', text: true, onClick: () => router.push(`/graph?doc_id=${r.id}`) }, () => '图谱'),
-    h(NButton, { size: 'small', type: 'error', text: true, onClick: () => handleDeleteDocument(r) }, () => '删除')
-  ]) }
+  { // 操作列：固定在右侧，包含 查看 / 图谱 / 删除 三个按钮
+    title: '操作', key: 'actions', width: 260, fixed: 'right' as const,
+    render: (r: any) => h('div', { style: 'display:flex;gap:8px' }, [
+      h(NButton, { size: 'small', type: 'primary', text: true, onClick: () => handleViewDocument(r) }, () => '查看'),
+      h(NButton, { size: 'small', type: 'info', text: true, onClick: () => router.push(`/graph?doc_id=${r.id}`) }, () => '图谱'),
+      h(NButton, { size: 'small', type: 'error', text: true, onClick: () => handleDeleteDocument(r) }, () => '删除')
+    ])
+  }
 ]
 
+// ---------------------------------------------------------------------------
+// 启动加载 / Initial Load
+// ---------------------------------------------------------------------------
+
+/** 组件初始化时立即加载文档列表 / Load document list on component initialization */
 loadDocuments()
 </script>
 

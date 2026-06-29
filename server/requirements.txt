@@ -1,31 +1,83 @@
-fastapi==0.104.1
-pydantic>=2.7.0,<3.0.0
-uvicorn[standard]==0.24.0
-neo4j>=5.14.0
-pymupdf==1.23.8
-openai==1.3.0
-anthropic==0.39.0
-pydantic-settings==2.1.0
-python-multipart==0.0.6
-redis==5.0.1
-rq==1.15.1
-python-dotenv==1.0.0
-aiofiles==23.2.1
-httpx==0.25.2
-requests==2.31.0
-numpy>=2.0.0,<3.0.0
-python-docx==1.1.0
-beautifulsoup4==4.12.2
+# =============================================================================
+# GraphForge - Backend Python Dependencies
+# GraphForge 后端 Python 依赖清单
+#
+# Usage:
+#   pip install -r requirements.txt
+#   pip install -r requirements.txt --extra-index-url <mirror>  # 使用国内镜像
+#
+# Groups:
+#   Core Web     - FastAPI, Uvicorn, Pydantic
+#   Database     - Neo4j driver, Redis, RQ
+#   AI/LLM      - OpenAI, Anthropic SDKs
+#   Document    - PDF, DOCX, HTML parsers
+#   GraphRAG    - Knowledge graph pipeline libraries
+#   Testing     - Pytest with asyncio support
+# =============================================================================
 
-# GraphRAG
-neo4j-graphrag>=0.5.0
-graphdatascience>=1.9
-sentence-transformers>=2.2.0
-spacy>=3.7.0
-pyyaml>=6.0
-fuzzywuzzy>=0.18.0
-python-Levenshtein>=0.23.0
+# ---------------------------------------------------------------------------
+# Core Web Framework
+# Web 框架核心依赖
+# ---------------------------------------------------------------------------
+fastapi==0.104.1                        # ASGI web framework（Web 框架）
+pydantic>=2.7.0,<3.0.0                  # Data validation（数据校验）
+uvicorn[standard]==0.24.0               # ASGI server（ASGI 服务器）
+python-multipart==0.0.6                 # File upload support（文件上传支持）
+httpx==0.25.2                           # Async HTTP client（异步 HTTP 客户端）
+requests==2.31.0                        # Sync HTTP client（同步 HTTP 客户端）
 
+# ---------------------------------------------------------------------------
+# Database & Queue
+# 数据库与消息队列
+# ---------------------------------------------------------------------------
+neo4j>=5.14.0                           # Neo4j Bolt driver（图数据库驱动）
+redis==5.0.1                            # Redis client（缓存与队列客户端）
+rq==1.15.1                              # Redis Queue for async tasks（异步任务队列）
+
+# ---------------------------------------------------------------------------
+# Configuration & Environment
+# 配置与环境管理
+# ---------------------------------------------------------------------------
+pydantic-settings==2.1.0                # Settings management（配置管理）
+python-dotenv==1.0.0                    # .env file loader（环境变量加载）
+aiofiles==23.2.1                        # Async file operations（异步文件操作）
+pyyaml>=6.0                             # YAML parser for GraphRAG config（YAML 解析）
+
+# ---------------------------------------------------------------------------
+# AI / LLM Providers
+# AI 大语言模型提供商 SDK
+# ---------------------------------------------------------------------------
+openai==1.3.0                           # OpenAI API（GPT 系列模型）
+anthropic==0.39.0                       # Anthropic Claude API（Claude 系列模型）
+
+# ---------------------------------------------------------------------------
+# Document Parsing
+# 文档解析引擎
+# ---------------------------------------------------------------------------
+pymupdf==1.23.8                         # PDF parser (MuPDF)（PDF 解析）
+python-docx==1.1.0                      # DOCX parser（Word 文档解析）
+beautifulsoup4==4.12.2                  # HTML/XML parser（HTML 解析）
+
+# ---------------------------------------------------------------------------
+# GraphRAG Pipeline
+# 知识图谱流水线依赖
+# ---------------------------------------------------------------------------
+neo4j-graphrag>=0.5.0                   # GraphRAG for Neo4j（图增强检索）
+graphdatascience>=1.9                   # Neo4j GDS client（图算法库）
+sentence-transformers>=2.2.0            # Text embeddings（文本嵌入模型）
+spacy>=3.7.0                            # NLP pipeline（自然语言处理）
+fuzzywuzzy>=0.18.0                      # Fuzzy string matching（模糊字符串匹配）
+python-Levenshtein>=0.23.0              # Levenshtein distance（编辑距离加速）
+
+# ---------------------------------------------------------------------------
+# Scientific Computing
+# 科学计算
+# ---------------------------------------------------------------------------
+numpy>=2.0.0,<3.0.0                     # Numerical computing（数值计算）
+
+# ---------------------------------------------------------------------------
 # Testing
-pytest==8.1.1
-pytest-asyncio==0.23.6
+# 测试框架
+# ---------------------------------------------------------------------------
+pytest==8.1.1                           # Test framework（测试框架）
+pytest-asyncio==0.23.6                  # Async test support（异步测试支持）

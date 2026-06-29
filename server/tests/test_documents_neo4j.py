@@ -2,10 +2,20 @@
 """
 Quick verification script for Documents API
 测试后端文档管理 API
+
+该脚本需要 Neo4j 数据库连接，用于验证文档管理 API 的数据库操作。
+
+Usage:
+    # 确保 Neo4j 已启动
+    python tests/test_documents_neo4j.py
 """
 
 import sys
-sys.path.insert(0, '/home/yuye/POW/server')
+from pathlib import Path
+
+# Add project server directory to Python path for module imports
+PROJECT_ROOT = Path(__file__).resolve().parent.parent  # GraphForge/server/
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from infra.neo4j_client import Neo4jClient
 

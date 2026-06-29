@@ -2,6 +2,18 @@
 """
 集成测试：验证知识图谱优化的实际效果
 Integration Test: Verify Knowledge Graph Optimization Results
+
+该测试套件验证 GraphForge 知识图谱优化功能的正确性，包括：
+- 实体类型验证 (Entity Type Validation)
+- 关系类型验证 (Relationship Type Validation)
+- 谓词白名单 (Predicate Allowlist)
+- 领域过滤器关键词 (Domain Filter Keywords)
+- 置信度阈值 (Confidence Threshold)
+- 类型约束 (Type Constraints)
+- 配置文件完整性 (Configuration Files)
+
+Usage:
+    python tests/test_kg_optimization_integration.py
 """
 
 import sys
@@ -9,8 +21,9 @@ import json
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-# Add server to path
-sys.path.insert(0, "/home/yuye/POW/server")
+# Add project server directory to Python path for module imports
+PROJECT_ROOT = Path(__file__).resolve().parent.parent  # GraphForge/server/
+sys.path.insert(0, str(PROJECT_ROOT))
 
 def test_entity_type_validation():
     """测试实体类型验证"""
@@ -135,7 +148,7 @@ def test_domain_filter_keywords():
     
     try:
         # 不导入实际模块，直接检查文件内容
-        domain_filter_path = Path("/home/yuye/POW/server/graphrag/utils/domain_filter.py")
+        domain_filter_path = PROJECT_ROOT / "graphrag/utils/domain_filter.py"
         content = domain_filter_path.read_text(encoding='utf-8')
         
         # 检查关键词库的存在
@@ -179,7 +192,7 @@ def test_confidence_threshold():
     print("="*60)
     
     try:
-        domain_filter_path = Path("/home/yuye/POW/server/graphrag/utils/domain_filter.py")
+        domain_filter_path = PROJECT_ROOT / "graphrag/utils/domain_filter.py"
         content = domain_filter_path.read_text(encoding='utf-8')
         
         # 查找阈值定义
@@ -209,7 +222,7 @@ def test_type_constraints():
     print("="*60)
     
     try:
-        domain_filter_path = Path("/home/yuye/POW/server/graphrag/utils/domain_filter.py")
+        domain_filter_path = PROJECT_ROOT / "graphrag/utils/domain_filter.py"
         content = domain_filter_path.read_text(encoding='utf-8')
         
         # 检查类型约束的存在
@@ -255,7 +268,7 @@ def test_config_files():
     
     # 测试 ontology.yaml
     print("\n1. ontology.yaml 检查:")
-    ontology_path = Path("/home/yuye/POW/server/graphrag/config/ontology.yaml")
+    ontology_path = PROJECT_ROOT / "graphrag/config/ontology.yaml"
     if ontology_path.exists():
         content = ontology_path.read_text(encoding='utf-8')
         
@@ -276,7 +289,7 @@ def test_config_files():
     
     # 测试 predicates.yaml
     print("\n2. predicates.yaml 检查:")
-    predicates_path = Path("/home/yuye/POW/server/graphrag/config/predicates.yaml")
+    predicates_path = PROJECT_ROOT / "graphrag/config/predicates.yaml"
     if predicates_path.exists():
         content = predicates_path.read_text(encoding='utf-8')
         

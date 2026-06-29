@@ -1,48 +1,74 @@
 // ============================================================
-// GraphForge Global Design System
-// 国际顶尖软件设计水准 — 轻奢企业级设计语言
+// GraphForge Global Design System / 全局设计系统
 // ============================================================
+// A premium enterprise design language with a luxurious gold-and-purple
+// palette, glass-morphism surfaces, rich animation library, and responsive
+// utility classes — all exposed as CSS custom properties for theming.
+//
+// 轻奢企业级设计语言，采用金紫配色、毛玻璃效果、
+// 丰富的动画库和响应式工具类，全部通过 CSS 自定义属性暴露以实现主题化。
 
-// Google Fonts
+// ---------------------------------------------------------------------------
+// Google Fonts / 谷歌字体
+// ---------------------------------------------------------------------------
+// Serif font for Chinese headings, sans-serif (Inter) for body/English,
+// and JetBrains Mono for code blocks.
+// 思源宋体用于中文标题，Inter 用于正文/英文，JetBrains Mono 用于代码块。
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 
 // ============================================================
-// CSS Custom Properties (Design Tokens)
+// CSS Custom Properties (Design Tokens) / 设计令牌
 // ============================================================
+// Every colour, shadow, radius, transition curve, and font stack is defined
+// once as a custom property on :root. This guarantees visual consistency
+// and makes global theme changes trivial.
+//
+// 所有颜色、阴影、圆角、过渡曲线和字体栈都在 :root 上定义为自定义属性。
+// 这保证了视觉一致性，并使全局主题更改变得轻而易举。
 :root {
-  // Primary palette — luxurious gold
+  // -----------------------------------------------------------------------
+  // Primary palette — luxurious gold / 主色调 — 奢华金色
+  // -----------------------------------------------------------------------
   --color-primary: #c2a474;
   --color-primary-light: #d4af37;
   --color-primary-dark: #9a7509;
-  --color-primary-glow: rgba(194, 164, 116, 0.3);
-  --color-primary-subtle: rgba(194, 164, 116, 0.08);
+  --color-primary-glow: rgba(194, 164, 116, 0.3);   // Glow effect / 发光效果
+  --color-primary-subtle: rgba(194, 164, 116, 0.08); // Subtle tint / 极淡底色
 
-  // Accent palette — royal purple
+  // -----------------------------------------------------------------------
+  // Accent palette — royal purple / 强调色 — 皇家紫
+  // -----------------------------------------------------------------------
   --color-accent: #9b87f5;
   --color-accent-light: #b4a8f8;
   --color-accent-dark: #7c6ae0;
   --color-accent-glow: rgba(155, 135, 245, 0.3);
 
-  // Semantic colors
+  // -----------------------------------------------------------------------
+  // Semantic colours / 语义颜色
+  // -----------------------------------------------------------------------
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-info: #3b82f6;
 
-  // Neutrals
-  --color-bg: #f8fafc;
-  --color-bg-alt: #f1f5f9;
-  --color-surface: #ffffff;
-  --color-surface-alt: #fafbfc;
+  // -----------------------------------------------------------------------
+  // Neutrals / 中性色
+  // -----------------------------------------------------------------------
+  --color-bg: #f8fafc;           // Page background / 页面背景
+  --color-bg-alt: #f1f5f9;       // Alternate background / 交替背景
+  --color-surface: #ffffff;       // Card / panel surface / 卡片/面板表面
+  --color-surface-alt: #fafbfc;  // Alternate surface / 交替表面
   --color-border: rgba(226, 232, 240, 0.8);
   --color-border-light: rgba(226, 232, 240, 0.4);
-  --color-text: #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94a3b8;
+  --color-text: #0f172a;             // Primary text / 主要文本
+  --color-text-secondary: #475569;   // Secondary text / 次要文本
+  --color-text-muted: #94a3b8;       // Muted / placeholder text / 弱化/占位文本
 
-  // Shadows
+  // -----------------------------------------------------------------------
+  // Shadows / 阴影
+  // -----------------------------------------------------------------------
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -50,28 +76,37 @@
   --shadow-glow: 0 0 20px var(--color-primary-glow);
   --shadow-glow-lg: 0 0 40px var(--color-primary-glow);
 
-  // Border radius
+  // -----------------------------------------------------------------------
+  // Border radii / 圆角
+  // -----------------------------------------------------------------------
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-2xl: 24px;
 
-  // Transitions
+  // -----------------------------------------------------------------------
+  // Transitions / 过渡
+  // -----------------------------------------------------------------------
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-spring: 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); // Springy bouncy / 弹性弹跳
 
-  // Typography
+  // -----------------------------------------------------------------------
+  // Typography / 字体栈
+  // -----------------------------------------------------------------------
   --font-sans: 'Inter', 'Noto Serif SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-serif: 'Noto Serif SC', Georgia, 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
 }
 
 // ============================================================
-// Base Reset & Typography
+// Base Reset & Typography / 基础重置与排版
 // ============================================================
+
+// Universal reset: remove default margins/padding and use border-box sizing.
+// 全局重置：移除默认外边距/内边距，使用 border-box 盒模型。
 *,
 *::before,
 *::after {
@@ -82,15 +117,15 @@
 
 html {
   font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%; // Prevent iOS font scaling in landscape / 防止 iOS 横屏字体缩放
+  scroll-behavior: smooth;        // Enable smooth scrolling / 启用平滑滚动
 }
 
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+  font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1; // OpenType ligatures, contextual alternates, kerning
   text-rendering: optimizeLegibility;
   color: var(--color-text);
   background: var(--color-bg);
@@ -98,6 +133,9 @@ body {
   overflow-x: hidden;
 }
 
+// Root app container — subtle multi-layer gradient background with decorative
+// radial gradients that add depth without distracting from content.
+// 应用根容器 — 微妙的背景渐变叠加装饰性径向渐变，增加层次感但不分散内容注意力。
 #app {
   min-height: 100vh;
   background: linear-gradient(135deg,
@@ -112,17 +150,19 @@ body {
     content: '';
     position: fixed;
     inset: 0;
+    // Three overlapping radial gradients create a subtle organic texture
+    // 三层叠加径向渐变，营造微妙的有机纹理
     background:
       radial-gradient(ellipse at 20% 20%, rgba(194, 164, 116, 0.04) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 80%, rgba(155, 135, 245, 0.04) 0%, transparent 50%),
       radial-gradient(ellipse at 50% 50%, rgba(245, 158, 11, 0.02) 0%, transparent 60%);
-    pointer-events: none;
+    pointer-events: none; // Ensure gradients don't block interactions / 确保渐变不阻挡交互
     z-index: 0;
   }
 }
 
 // ============================================================
-// Custom Scrollbar — luxurious gradient
+// Custom Scrollbar — luxurious gold-to-purple gradient / 自定义滚动条 — 金紫渐变
 // ============================================================
 ::-webkit-scrollbar {
   width: 8px;
@@ -139,7 +179,7 @@ body {
   background: linear-gradient(180deg, var(--color-primary-light), var(--color-accent));
   border-radius: 4px;
   border: 2px solid transparent;
-  background-clip: content-box;
+  background-clip: content-box; // Borders create inset spacing / 边框创建内嵌间距
   transition: all var(--transition-base);
 
   &:hover {
@@ -149,8 +189,10 @@ body {
 }
 
 // ============================================================
-// Selection Style
+// Selection Style / 选中样式
 // ============================================================
+// Gold-to-purple gradient selection for a premium feel.
+// 金紫渐变选中效果，营造高级质感。
 ::selection {
   background: linear-gradient(135deg, rgba(194, 164, 116, 0.3), rgba(155, 135, 245, 0.3));
   color: inherit;
@@ -162,8 +204,10 @@ body {
 }
 
 // ============================================================
-// Utility Classes
+// Utility Classes / 工具类
 // ============================================================
+
+// Text truncation with ellipsis / 文本截断省略号
 .text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -173,6 +217,7 @@ body {
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 
+// Flexbox centering & space-between / Flexbox 居中与两端对齐
 .flex-center {
   display: flex;
   align-items: center;
@@ -185,6 +230,7 @@ body {
   justify-content: space-between;
 }
 
+// Gold gradient text / 金色渐变文字
 .text-gradient {
   background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary-dark));
   -webkit-background-clip: text;
@@ -192,6 +238,7 @@ body {
   background-clip: text;
 }
 
+// Purple accent gradient text / 紫色强调渐变文字
 .text-gradient-accent {
   background: linear-gradient(135deg, var(--color-accent), var(--color-accent-dark));
   -webkit-background-clip: text;
@@ -202,6 +249,8 @@ body {
 .card-shadow { box-shadow: var(--shadow-md); }
 .card-shadow-lg { box-shadow: var(--shadow-lg); }
 
+// Hover lift: elevates the element with a translateY + shadow increase.
+// 悬停抬升：通过 translateY + 阴影增强使元素抬高。
 .hover-lift {
   transition: transform var(--transition-base), box-shadow var(--transition-base);
   &:hover {
@@ -210,7 +259,12 @@ body {
   }
 }
 
-// Glass morphism
+// ---------------------------------------------------------------------------
+// Glass morphism / 毛玻璃效果
+// ---------------------------------------------------------------------------
+
+// Standard glass surface — semi-transparent background + backdrop blur.
+// 标准毛玻璃表面 — 半透明背景 + 背景模糊。
 .glass {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px) saturate(180%);
@@ -218,6 +272,8 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
+// Stronger glass — higher opacity and blur for surfaces that need less transparency.
+// 增强毛玻璃 — 更高的不透明度和模糊，适用于需要较少透明度的表面。
 .glass-strong {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(30px) saturate(200%);
@@ -225,6 +281,10 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
+// Glass card — combines glass effect with rounded corners, shadow, and a subtle
+// inner-top highlight for depth. Slight hover lift for interactivity cues.
+// 毛玻璃卡片 — 结合毛玻璃效果、圆角、阴影和内顶部高光以增加立体感。
+// 悬停时轻微抬升以提供交互提示。
 .glass-card {
   @extend .glass;
   border-radius: var(--radius-xl);
@@ -237,10 +297,16 @@ body {
 }
 
 // ============================================================
-// Comprehensive Animation Library
+// Comprehensive Animation Library / 完整动画库
 // ============================================================
+// All keyframes are defined here and exposed via utility classes below.
+// Stagger-delay helpers enable orchestrated sequential animations.
+// 所有关键帧在此定义，并通过下方的工具类暴露。
+// 交错延迟辅助类可实现编排的顺序动画。
 
-// Ripple effect keyframes (used by v-ripple directive)
+// -----------------------------------------------------------------------
+// Ripple effect (used by v-ripple directive) / 涟漪效果（用于 v-ripple 指令）
+// -----------------------------------------------------------------------
 @keyframes ripple-effect {
   to {
     transform: scale(1);
@@ -248,13 +314,17 @@ body {
   }
 }
 
-// Glow pulse for interactive elements
+// -----------------------------------------------------------------------
+// Glow pulse for interactive elements / 交互元素发光脉冲
+// -----------------------------------------------------------------------
 @keyframes interactive-glow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(194, 164, 116, 0); }
   50% { box-shadow: 0 0 0 8px rgba(194, 164, 116, 0.08); }
 }
 
-// Gentle attention pulse
+// -----------------------------------------------------------------------
+// Gentle attention-grabbing pulse / 温和的注意力吸引脉冲
+// -----------------------------------------------------------------------
 @keyframes attention {
   0%, 100% { transform: scale(1); }
   10% { transform: scale(1.03); }
@@ -263,7 +333,9 @@ body {
   40% { transform: scale(1); }
 }
 
-// Fade animations
+// -----------------------------------------------------------------------
+// Fade animations / 淡入动画
+// -----------------------------------------------------------------------
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -289,36 +361,47 @@ body {
   to { opacity: 1; transform: translateX(0); }
 }
 
-// Scale animations
+// -----------------------------------------------------------------------
+// Scale animations / 缩放动画
+// -----------------------------------------------------------------------
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: scale(1); }
 }
 
+// Elastic bounce-in / 弹性弹入
 @keyframes scaleInBounce {
   0% { opacity: 0; transform: scale(0.8); }
   60% { opacity: 1; transform: scale(1.05); }
   100% { opacity: 1; transform: scale(1); }
 }
 
-// Float / Breathe
+// -----------------------------------------------------------------------
+// Float / Breathe / 浮动 / 呼吸
+// -----------------------------------------------------------------------
+
+// Gentle vertical float / 温和的上下浮动
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
 }
 
+// Wider float with slight rotation / 大幅浮动辅以轻微旋转
 @keyframes floatWide {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   33% { transform: translateY(-10px) rotate(1deg); }
   66% { transform: translateY(-5px) rotate(-1deg); }
 }
 
+// Breathing scale effect / 呼吸缩放效果
 @keyframes breathe {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.05); opacity: 0.8; }
 }
 
-// Pulse / Glow
+// -----------------------------------------------------------------------
+// Pulse / Glow / 脉冲 / 发光
+// -----------------------------------------------------------------------
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 0 0 var(--color-primary-glow); }
   50% { box-shadow: 0 0 0 12px transparent; }
@@ -329,12 +412,15 @@ body {
   50% { box-shadow: 0 0 24px var(--color-primary-glow); }
 }
 
+// Colour-shifting glow rotation / 颜色旋转发光
 @keyframes glowRotate {
   0% { filter: hue-rotate(0deg); }
   100% { filter: hue-rotate(360deg); }
 }
 
-// Shimmer loading
+// -----------------------------------------------------------------------
+// Shimmer loading — sweeping gradient for skeleton screens / 扫描渐变骨架屏
+// -----------------------------------------------------------------------
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -345,7 +431,9 @@ body {
   100% { background-position: 400px 0; }
 }
 
-// Slide animations
+// -----------------------------------------------------------------------
+// Slide animations / 滑动动画
+// -----------------------------------------------------------------------
 @keyframes slideInUp {
   from { opacity: 0; transform: translateY(60px); }
   to { opacity: 1; transform: translateY(0); }
@@ -356,7 +444,9 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-// Rotate
+// -----------------------------------------------------------------------
+// Rotate / 旋转动画
+// -----------------------------------------------------------------------
 @keyframes rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -367,29 +457,40 @@ body {
   to { transform: rotate(360deg); }
 }
 
-// Special effects
+// -----------------------------------------------------------------------
+// Special effects / 特殊效果
+// -----------------------------------------------------------------------
+
+// Moving gradient background / 流动渐变背景
 @keyframes gradientFlow {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
+// Border colour cycling / 边框颜色循环
 @keyframes borderGlow {
   0%, 100% { border-color: var(--color-primary-light); }
   50% { border-color: var(--color-accent); }
 }
 
+// Expanding ripple ring / 扩散波纹环
 @keyframes ripple {
   0% { transform: scale(0); opacity: 1; }
   100% { transform: scale(4); opacity: 0; }
 }
 
+// Falling confetti (used for celebration effects) / 五彩纸屑落下（用于庆祝效果）
 @keyframes confetti-fall {
   0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
   100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
-// Animation utility classes
+// -----------------------------------------------------------------------
+// Animation utility classes / 动画工具类
+// -----------------------------------------------------------------------
+// Each utility class applies a single animation with sensible defaults.
+// 每个工具类应用一个带有合理默认值的单一动画。
 .animate-fade-in { animation: fadeIn 0.6s ease-out both; }
 .animate-fade-in-up { animation: fadeInUp 0.7s ease-out both; }
 .animate-fade-in-down { animation: fadeInDown 0.5s ease-out both; }
@@ -407,32 +508,49 @@ body {
 .animate-gradient { animation: gradientFlow 3s ease infinite; background-size: 200% 200%; }
 .animate-border-glow { animation: borderGlow 2s ease-in-out infinite; }
 
-// Stagger children animation
+// -----------------------------------------------------------------------
+// Stagger children with increasing delays / 子元素交错延迟
+// -----------------------------------------------------------------------
+
+// Individual stagger-delay classes (1-12 steps at 80 ms each)
+// 单个交错延迟类（1-12 步，每步 80 ms）
 @for $i from 1 through 12 {
   .stagger-#{$i} { animation-delay: #{$i * 0.08}s; }
 }
 
+// Stagger container: all direct children fade in sequentially.
+// 交错容器：所有直接子元素依次淡入。
 .stagger-container > * {
   opacity: 0;
   animation: fadeInUp 0.6s ease-out forwards;
 }
 
+// Each nth-child gets a progressively later delay (up to 20 children).
+// 每个 nth-child 获得逐渐增加的延迟（最多 20 个子元素）。
 @for $i from 1 through 20 {
   .stagger-container > *:nth-child(#{$i}) {
     animation-delay: #{$i * 0.06}s;
   }
 }
 
-// Page transition classes
+// -----------------------------------------------------------------------
+// Page transition classes (used with Vue <Transition>) / 页面过渡类（与 Vue <Transition> 配合使用）
+// -----------------------------------------------------------------------
 .page-enter-active {
   animation: fadeInUp 0.4s ease-out;
 }
 
 .page-leave-active {
+  // Reverse of fadeInDown for a smooth exit / fadeInDown 的逆序实现平滑退出
   animation: fadeInDown 0.3s ease-in reverse;
 }
 
-// Skeleton loading
+// -----------------------------------------------------------------------
+// Skeleton loading placeholders / 骨架屏加载占位符
+// -----------------------------------------------------------------------
+
+// Base skeleton — grey gradient with shimmer animation to indicate loading.
+// 基础骨架 — 带有闪烁动画的灰色渐变，用于指示加载中。
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
@@ -440,6 +558,7 @@ body {
   border-radius: var(--radius-sm);
 }
 
+// Skeleton variants for common layout patterns / 常见布局模式的骨架屏变体
 .skeleton-text {
   height: 16px;
   margin-bottom: 8px;
@@ -466,8 +585,10 @@ body {
 }
 
 // ============================================================
-// Page Background Patterns
+// Page Background Patterns / 页面背景图案
 // ============================================================
+// Decorative radial-gradients overlays for different page themes.
+// 不同页面主题的装饰性径向渐变叠加层。
 .page-bg-gold {
   background:
     radial-gradient(ellipse at 20% 20%, rgba(194, 164, 116, 0.06) 0%, transparent 50%),
@@ -497,8 +618,9 @@ body {
 }
 
 // ============================================================
-// Gradient Text Variants
+// Gradient Text Variants / 渐变文字变体
 // ============================================================
+
 .gradient-text-gold {
   background: linear-gradient(135deg, #d4af37, #b8860b, #c9a668);
   -webkit-background-clip: text;
@@ -528,8 +650,10 @@ body {
 }
 
 // ============================================================
-// Animated Background Patterns
+// Animated Background Patterns / 动画背景图案
 // ============================================================
+
+// Subtle grid overlay / 细微网格叠加
 .bg-grid-pattern {
   background-image:
     linear-gradient(rgba(194, 164, 116, 0.05) 1px, transparent 1px),
@@ -537,14 +661,18 @@ body {
   background-size: 50px 50px;
 }
 
+// Dot pattern / 圆点图案
 .bg-dot-pattern {
   background-image: radial-gradient(rgba(194, 164, 116, 0.1) 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
 // ============================================================
-// Animated Gradient Background
+// Animated Gradient Background / 动画渐变背景
 // ============================================================
+
+// A multi-colour gradient background that slowly flows between hues.
+// 多色渐变背景，在色调之间缓慢流动。
 .bg-animated-gradient {
   background: linear-gradient(
     270deg,
@@ -558,8 +686,11 @@ body {
 }
 
 // ============================================================
-// Hover card effects
+// Hover card effects / 悬停卡片效果
 // ============================================================
+
+// Card that lifts with a golden glow on hover.
+// 悬停时抬升并带有金色辉光的卡片。
 .card-hover-glow {
   transition: all var(--transition-base);
   &:hover {
@@ -569,8 +700,11 @@ body {
 }
 
 // ============================================================
-// Number animation
+// Number animation / 数字动画
 // ============================================================
+
+// Ensures consistent digit widths during count-up animations (tabular figures).
+// 在数字递增动画中确保一致的字符宽度（表格数字）。
 .count-up {
   display: inline-block;
   font-variant-numeric: tabular-nums;
@@ -578,19 +712,24 @@ body {
 }
 
 // ============================================================
-// Particle canvas
+// Particle canvas — full-screen fixed overlay / 粒子画布 — 全屏固定叠加层
 // ============================================================
+
 #particles-canvas {
   position: fixed;
   inset: 0;
-  pointer-events: none;
+  pointer-events: none; // Allow clicking through to UI elements / 允许点击穿透到 UI 元素
   z-index: 0;
   opacity: 0.3;
 }
 
 // ============================================================
-// Media queries
+// Media Queries / 媒体查询
 // ============================================================
+
+// Respect user accessibility preferences: disable all animations when
+// "reduce motion" is enabled in the OS.
+// 尊重用户无障碍偏好：当操作系统中启用了"减少动效"时禁用所有动画。
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

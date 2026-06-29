@@ -1,16 +1,28 @@
 <!DOCTYPE html>
+<!-- =========================================================================
+     GraphForge - Main HTML Entry Point
+     GraphForge 主 HTML 入口文件
+
+     This is the shell HTML for the Vue 3 SPA. It loads:
+       - Google Fonts (Noto Serif SC) for Chinese typography
+       - The main.ts entry point that bootstraps Vue
+     The <div id="app"> is the mount target for the Vue application.
+     ========================================================================= -->
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8">
     <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GraphForge</title>
+    <!-- Google Fonts: Noto Serif SC for elegant Chinese text rendering -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400;500;600;700;900&display=swap" rel="stylesheet">
   </head>
   <body>
+    <!-- Vue 3 app mount point - all components render inside this div -->
     <div id="app"></div>
+    <!-- TypeScript entry point - bootstraps Vue with plugins and routing -->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

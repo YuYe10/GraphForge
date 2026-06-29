@@ -1,5 +1,26 @@
 
+# =============================================================================
+# GraphForge - Docker Compose Configuration
+# GraphForge Docker 容器编排配置文件
+#
+# Services:
+#   gfneo4j   - Neo4j 5.x 图数据库 (with APOC & GDS plugins)
+#   gfredis   - Redis 7.x 缓存与消息队列 (with AOF persistence)
+#
+# Usage:
+#   docker-compose up -d                    # 启动所有服务
+#   docker-compose down                     # 停止所有服务
+#   docker-compose logs -f gfneo4j          # 查看 Neo4j 日志
+#   docker-compose exec gfredis redis-cli   # 进入 Redis CLI
+# =============================================================================
+
 services:
+  # ---------------------------------------------------------------------------
+  # Neo4j 图数据库服务
+  # Graph Database Service - stores knowledge graph entities and relationships
+  # Exposes: Bolt port 7687 (driver access), HTTP port 7474 (browser console)
+  # Uses APOC for advanced procedures and GDS for graph algorithms
+  # ---------------------------------------------------------------------------
   gfneo4j:
     image: neo4j:5.26-community
     container_name: gf-neo4j
@@ -8,14 +29,14 @@ services:
       - NEO4J_PLUGINS=["apoc", "graph-data-science"]
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*,gds.*
     ports:
-      - "${NEO4J_HTTP_PORT:-7474}:7474"  # HTTP
-      - "${NEO4J_BOLT_PORT:-7687}:7687"  # Bolt
+      - "${NEO4J_HTTP_PORT:-7474}:7474"  # HTTP (Browser console)
+      - "${NEO4J_BOLT_PORT:-7687}:7687"  # Bolt (Driver connection)
     volumes:
-      - ./data/neo4j:/data
-      - ./data/neo4j/logs:/logs
-      - ./data/neo4j/import:/var/lib/neo4j/import
-      - ./data/neo4j/plugins:/plugins
-      - ./server/infra/schema.cypher:/docker-entrypoint-initdb.d/init.cypher:ro
+      - ./data/neo4j:/data                     # Graph data persistence
+      - ./data/neo4j/logs:/logs                 # Log files
+      - ./data/neo4j/import:/var/lib/neo4j/import  # CSV import directory
+      - ./data/neo4j/plugins:/plugins           # Plugin directory
+      - ./server/infra/schema.cypher:/docker-entrypoint-initdb.d/init.cypher:ro  # Auto-init schema
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER:-neo4j}", "-p", "${NEO4J_PASS:-neo4j1234}", "RETURN 1"]
       interval: 10s
@@ -26,23 +47,28 @@ services:
     networks:
       - graphforge
 
+  # ---------------------------------------------------------------------------
+  # Redis 缓存与任务队列服务
+  # Cache & Queue Service - caching, RQ job queue, session storage
+  # Configured with AOF persistence (everysec) and LRU eviction policy
+  # ---------------------------------------------------------------------------
   gfredis:
     image: redis:7.4.7-alpine
     container_name: gf-redis
     command: >
       redis-server
-      --appendonly yes
-      --appendfsync everysec
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --save 900 1
-      --save 300 10
-      --save 60 10000
+      --appendonly yes              # 启用 AOF 持久化
+      --appendfsync everysec        # 每秒 fsync，平衡性能与安全
+      --maxmemory 256mb             # 最大内存限制
+      --maxmemory-policy allkeys-lru  # LRU 淘汰策略
+      --save 900 1                  # 900秒内至少1个key变化则快照
+      --save 300 10                 # 300秒内至少10个key变化则快照
+      --save 60 10000               # 60秒内至少10000个key变化则快照
       --requirepass ${REDIS_PASSWORD:-graphforge_redis}
       --loglevel notice
-      --databases 16
-      --tcp-keepalive 300
-      --timeout 300
+      --databases 16                # 16 个逻辑数据库
+      --tcp-keepalive 300           # TCP 保活探测间隔
+      --timeout 300                 # 客户端空闲超时
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -55,6 +81,50 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
+    networks:
+      - graphforge
+
+  # ---------------------------------------------------------------------------
+  # API 后端服务
+  # Backend API Service - FastAPI application with uvicorn
+  # Serves the REST API for knowledge graph operations
+  # ---------------------------------------------------------------------------
+  gfapi:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: gf-api
+    env_file:
+      - ./server/.env
+    environment:
+      - NEO4J_URI=${NEO4J_URI:-bolt://gfneo4j:7687}
+      - REDIS_URL=${REDIS_URL:-redis://:graphforge_redis@gfredis:6379/0}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      gfneo4j:
+        condition: service_healthy
+      gfredis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - graphforge
+
+  # ---------------------------------------------------------------------------
+  # 前端 Web 服务
+  # Frontend Web Service - Nginx serving the Vue 3 SPA
+  # Routes /api/* requests to the backend API service
+  # ---------------------------------------------------------------------------
+  gffrontend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: gf-frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - gfapi
     restart: unless-stopped
     networks:
       - graphforge

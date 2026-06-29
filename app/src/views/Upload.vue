@@ -237,6 +237,34 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Upload.vue - Document Upload View (File / Text / URL)
+ * 文档上传视图（文件 / 文本 / URL）
+ *
+ * Purpose / 功能说明:
+ *   Three-tab upload interface supporting:
+ *   1. File upload - drag-and-drop with file type validation (.pdf, .md, .txt, .doc, .docx)
+ *   2. Text input - direct text content with minimum length validation
+ *   3. URL input - web page scraping with URL format validation
+ *   Each tab supports optional AI config (toggle + custom prompt) and topic root setting.
+ *   Processing progress is tracked via the processing store (Pinia), with confetti animation
+ *   on success, stats display, and navigation to the graph view.
+ *   三标签页上传界面，支持：
+ *   1. 文件上传 - 拖拽上传并验证文件类型
+ *   2. 文本输入 - 直接输入文本内容并验证最小长度
+ *   3. URL 输入 - 网页抓取并验证 URL 格式
+ *   每个标签页支持可选的 AI 配置（开关 + 自定义提示）和主题根节点设置。
+ *   处理进度通过 processing store (Pinia) 追踪，成功时有彩纸动画、
+ *   统计展示和导航到图谱视图的功能。
+ *
+ * Data flow / 数据流:
+ *   User selects content -> set form state -> call API (uploadFile/uploadText/uploadUrl) ->
+ *   receive jobId -> delegate to processingStore -> processingStore polls and updates status ->
+ *   reactive computed properties (currentTask, processing, progress) reflect state in UI
+ *   用户选择内容 -> 设置表单状态 -> 调用 API (uploadFile/uploadText/uploadUrl) ->
+ *   获取 jobId -> 委托给 processingStore -> processingStore 轮询并更新状态 ->
+ *   响应式计算属性 (currentTask, processing, progress) 在 UI 中反映状态
+ */
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMessage } from 'naive-ui'
@@ -252,31 +280,93 @@ void t // used in template
 const message = useMessage()
 const processingStore = useProcessingStore()
 
+// ---- Reactive State / 响应式状态 ----
+
+/** Currently active upload tab: "file" | "text" | "url" / 当前激活的上传标签页 */
 const activeTab = ref('file')
+
+/** The File object selected via the file picker / 通过文件选择器选中的文件对象 */
 const selectedFile = ref<any>(null)
+
+/** Text content for the text input tab / 文本输入标签页的文本内容 */
 const textContent = ref('')
+/** Document title for the text input tab / 文本输入标签页的文档标题 */
 const textTitle = ref('')
+
+/** URL input for the URL tab / URL 标签页的输入 */
 const urlInput = ref('')
+/** Document title for the URL tab / URL 标签页的文档标题 */
 const urlTitle = ref('')
+
+/**
+ * Optional topic root node. When set, the processing pipeline will associate
+ * extracted knowledge under this node in the graph.
+ * 可选的主题根节点。设置后，处理流水线会将提取的知识关联到图谱中的该节点下。
+ */
 const rootTopic = ref('')
+
+/** Whether AI-powered analysis is enabled / 是否启用 AI 分析 */
 const enableAI = ref(false)
+/** Custom prompt for AI analysis when enabled / 启用 AI 时的自定义分析提示 */
 const userPrompt = ref('')
+
+/** Whether an upload/submit request is in progress / 上传/提交请求是否进行中 */
 const uploading = ref(false)
+
+/** Result returned by the upload API (documentId, filename, jobId) / 上传 API 返回的结果 */
 const uploadResult = ref<any>(null)
+
+/** The current processing job ID, used to track progress via the store / 当前处理任务 ID */
 const currentJobId = ref<string | null>(null)
 
+// ---- Computed (delegated to ProcessingStore) / 计算属性（委托给 ProcessingStore） ----
+
+/** The current processing task from the store, keyed by jobId / 从 store 获取的当前处理任务 */
 const currentTask = computed(() => currentJobId.value ? processingStore.tasks.get(currentJobId.value) : null)
+/** Whether the task is actively processing / 任务是否正在处理中 */
 const processing = computed(() => currentTask.value?.status === 'processing')
+/** Whether the task has completed successfully / 任务是否已成功完成 */
 const processCompleted = computed(() => currentTask.value?.status === 'completed')
+/** Whether the task has failed / 任务是否已失败 */
 const processFailed = computed(() => currentTask.value?.status === 'failed')
+/** Current progress percentage (0-100) / 当前进度百分比 */
 const progress = computed(() => currentTask.value?.progress || 0)
+/** Current progress message text / 当前进度消息文本 */
 const progressMessage = computed(() => currentTask.value?.message || '')
+/** Processing statistics from the completed task / 完成任务的统计数据 */
 const processStats = computed(() => currentTask.value?.stats)
 
+// ---- Watchers / 侦听器 ----
+
+/**
+ * Watch the current task for cancellation.
+ * If the store reports a "cancelled" status, reset the uploading state and form.
+ * 侦听当前任务是否被取消。
+ * 如果 store 报告 "cancelled" 状态，重置上传状态和表单。
+ */
 watch(currentTask, (task) => {
   if (task?.status === 'cancelled') { uploading.value = false; resetState() }
 })
 
+// ---- Allowed File Types / 允许的文件类型 ----
+
+/** Allowed file extensions for upload validation / 允许上传的文件扩展名 */
+const ALLOWED_EXTENSIONS = ['.pdf', '.md', '.markdown', '.txt', '.doc', '.docx']
+/** Allowed MIME types for upload validation / 允许上传的 MIME 类型 */
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'text/markdown',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]
+
+// ---- Utility Functions / 工具函数 ----
+
+/**
+ * Format a file size in bytes to a human-readable string (e.g., "1.5 MB").
+ * 将字节数格式化为人类可读的字符串（如 "1.5 MB"）。
+ */
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 B'
   const k = 1024; const sizes = ['B', 'KB', 'MB', 'GB']
@@ -284,8 +374,18 @@ const formatFileSize = (bytes: number) => {
   return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
 }
 
+/**
+ * Extract the file extension from a filename and return it in uppercase.
+ * 从文件名中提取扩展名并转为大写。
+ */
 const getFileType = (filename: string) => filename.split('.').pop()?.toUpperCase() || '?'
 
+/**
+ * Generate confetti animation styles for the success celebration.
+ * Randomizes delay, horizontal position, rotation, color, and animation duration.
+ * 为成功庆祝生成彩纸动画样式。
+ * 随机化延迟、水平位置、旋转角度、颜色和动画时长。
+ */
 const confettiStyle = (i: number) => ({
   '--delay': `${Math.random() * 0.5}s`,
   '--x': `${Math.random() * 100}%`,
@@ -296,9 +396,14 @@ const confettiStyle = (i: number) => ({
   animationDuration: `${1.5 + Math.random() * 2}s`
 })
 
-const ALLOWED_EXTENSIONS = ['.pdf', '.md', '.markdown', '.txt', '.doc', '.docx']
-const ALLOWED_MIME_TYPES = ['application/pdf', 'text/markdown', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+// ---- File Validation / 文件校验 ----
 
+/**
+ * Validate a file's extension and MIME type against the allowed lists.
+ * Markdown files (.md, .markdown) are exempt from MIME type checks due to browser inconsistencies.
+ * 根据允许列表验证文件的扩展名和 MIME 类型。
+ * Markdown 文件 (.md, .markdown) 由于浏览器差异，不进行 MIME 类型检查。
+ */
 const validateFileType = (file: { name: string; type?: string }) => {
   const ext = '.' + file.name.toLowerCase().split('.').pop()
   if (!ALLOWED_EXTENSIONS.includes(ext)) return false
@@ -306,6 +411,14 @@ const validateFileType = (file: { name: string; type?: string }) => {
   return true
 }
 
+// ---- Event Handlers / 事件处理函数 ----
+
+/**
+ * Handle the file selection event from the uploader.
+ * Validates the file type and sets the selectedFile ref if valid.
+ * 处理上传器发出的文件选择事件。
+ * 校验文件类型，如果合法则设置 selectedFile 引用。
+ */
 const handleFileChange = ({ file }: any) => {
   if (file && validateFileType(file.file)) {
     selectedFile.value = file.file
@@ -316,11 +429,27 @@ const handleFileChange = ({ file }: any) => {
   }
 }
 
+/** Remove the selected file and reset state / 移除已选文件并重置状态 */
 const removeFile = () => { selectedFile.value = null; resetState() }
+
+/** Reset the upload result and jobId (keeps the selected file/text/URL) / 重置上传结果和 jobId（保留已选文件/文本/URL） */
 const resetState = () => { uploadResult.value = null; currentJobId.value = null }
 
-const isValidUrl = (url: string) => { try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:' } catch { return false } }
+/**
+ * Validate whether a string is a well-formed HTTP or HTTPS URL.
+ * 验证字符串是否为格式正确的 HTTP 或 HTTPS URL。
+ */
+const isValidUrl = (url: string) => {
+  try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:' }
+  catch { return false }
+}
 
+/**
+ * Build the options object for upload API calls.
+ * Includes rootTopic (if set) and AI config (if enabled with optional userPrompt).
+ * 为上传 API 调用构建选项对象。
+ * 包含 rootTopic（如已设置）和 AI 配置（如启用，可包含 userPrompt）。
+ */
 const buildOptions = () => {
   const base: any = { rootTopic: rootTopic.value || undefined }
   if (enableAI.value) {
@@ -330,22 +459,47 @@ const buildOptions = () => {
   return base
 }
 
+// ---- Upload Functions / 上传函数 ----
+
+/**
+ * Upload the selected file to the API.
+ * On success, delegates the processing job to the processing store for progress tracking.
+ * 将选中的文件上传到 API。
+ * 成功后，将处理任务委托给 processing store 进行进度追踪。
+ */
 const handleUpload = async () => {
   if (!selectedFile.value) { message.warning('请选择文件'); return }
   uploading.value = true; resetState()
   try {
     const result = await uploadFile(selectedFile.value, buildOptions())
     uploadResult.value = result
+    // Handle duplicate document detection
+    // 处理重复文档检测
     if (result.status === 'duplicate') { message.warning(result.message || '文档已存在'); uploading.value = false; return }
     if (result.jobId) {
       message.success('文件上传成功，开始处理...')
       uploading.value = false
       currentJobId.value = result.jobId
-      processingStore.addTask({ jobId: result.jobId, documentId: result.documentId, filename: result.filename, status: 'processing', progress: 0, message: '开始处理...' })
+      // Delegate progress tracking to the processing store
+      // 将进度追踪委托给 processing store
+      processingStore.addTask({
+        jobId: result.jobId,
+        documentId: result.documentId,
+        filename: result.filename,
+        status: 'processing',
+        progress: 0,
+        message: '开始处理...'
+      })
     }
   } catch (error: any) { message.error('上传失败: ' + error.message); uploading.value = false }
 }
 
+/**
+ * Submit text content to the API for processing.
+ * Validates minimum length (10 chars) before submission.
+ * 将文本内容提交到 API 进行处理。
+ * 提交前验证最小长度（10 个字符）。
+ */
 const handleTextUpload = async () => {
   if (!textContent.value || textContent.value.trim().length < 10) { message.error('文本内容至少10个字符'); return }
   uploading.value = true; resetState()
@@ -356,12 +510,27 @@ const handleTextUpload = async () => {
     if (result.jobId) {
       message.success('文本已提交，开始处理...')
       uploading.value = false; currentJobId.value = result.jobId
-      processingStore.addTask({ jobId: result.jobId, documentId: result.documentId, filename: result.filename, status: 'processing', progress: 0, message: '开始处理...' })
+      processingStore.addTask({
+        jobId: result.jobId,
+        documentId: result.documentId,
+        filename: result.filename,
+        status: 'processing',
+        progress: 0,
+        message: '开始处理...'
+      })
     }
+    // Clear input fields after successful submission
+    // 提交成功后清空输入字段
     textContent.value = ''; textTitle.value = ''; rootTopic.value = ''
   } catch (error: any) { message.error('提交失败: ' + error.message); uploading.value = false }
 }
 
+/**
+ * Submit a URL to the API for web scraping and processing.
+ * Validates URL format before submission.
+ * 将 URL 提交到 API 进行网页抓取和处理。
+ * 提交前验证 URL 格式。
+ */
 const handleUrlUpload = async () => {
   if (!urlInput.value || !isValidUrl(urlInput.value)) { message.error('请输入有效URL'); return }
   uploading.value = true; resetState()
@@ -372,12 +541,25 @@ const handleUrlUpload = async () => {
     if (result.jobId) {
       message.success('网页已抓取，开始处理...')
       uploading.value = false; currentJobId.value = result.jobId
-      processingStore.addTask({ jobId: result.jobId, documentId: result.documentId, filename: result.filename, status: 'processing', progress: 0, message: '开始处理...' })
+      processingStore.addTask({
+        jobId: result.jobId,
+        documentId: result.documentId,
+        filename: result.filename,
+        status: 'processing',
+        progress: 0,
+        message: '开始处理...'
+      })
     }
+    // Clear input fields after successful submission
+    // 提交成功后清空输入字段
     urlInput.value = ''; urlTitle.value = ''; rootTopic.value = ''
   } catch (error: any) { message.error('抓取失败: ' + error.message); uploading.value = false }
 }
 
+/**
+ * Full reset: clear all form fields, result state, and navigate back to the file tab.
+ * 完全重置：清空所有表单字段、结果状态，并切换回文件标签页。
+ */
 const resetUpload = () => {
   selectedFile.value = null; textContent.value = ''; textTitle.value = ''
   urlInput.value = ''; urlTitle.value = ''; rootTopic.value = ''

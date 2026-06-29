@@ -1,4 +1,32 @@
 {
+  "_comment": "===================================================================================",
+  "_comment2": "GraphForge Chinese (Simplified) Locale File / GraphForge 简体中文语言包",
+  "_comment3": "",
+  "_comment4": "This file contains all Chinese UI strings organized by feature modules.",
+  "_comment5": "本文件包含所有中文界面文字，按功能模块组织。",
+  "_comment6": "",
+  "_comment7": "Module Index / 模块索引:",
+  "_comment8": "  app            — Application-level strings (title, subtitle) / 应用级别字符串",
+  "_comment9": "  navigation     — Sidebar and top navigation menu / 侧边栏和顶部导航菜单",
+  "_comment10": "  dashboard      — Dashboard page metrics, status, quick actions / 仪表盘页面指标、状态、快捷操作",
+  "_comment11": "  upload         — Document upload flow / 文档上传流程",
+  "_comment12": "  knowledge      — Knowledge build page / 知识构建页面",
+  "_comment13": "  knowledge_card — Knowledge card CRUD / 知识卡片增删改查",
+  "_comment14": "  graph          — Graph visualization page / 图谱可视化页面",
+  "_comment15": "  query          — Cypher query page / Cypher 查询页面",
+  "_comment16": "  status         — Ingestion status tracking / 处理状态跟踪",
+  "_comment17": "  settings       — System settings (AI providers, database) / 系统设置（AI提供商、数据库）",
+  "_comment18": "  common         — Shared/common strings (confirm, cancel, etc.) / 通用字符串",
+  "_comment19": "",
+  "_comment20": "Maintenance Notes / 维护说明:",
+  "_comment21": "  - Keep this file structurally identical to en.json / 保持与 en.json 结构完全一致",
+  "_comment22": "  - Use {variable} syntax for dynamic values / 使用 {variable} 语法表示动态值",
+  "_comment23": "  - Messages are type-checked via MessageSchema in i18n/index.ts",
+  "_comment24": "    消息通过 i18n/index.ts 中的 MessageSchema 进行类型检查",
+  "_comment25": "  - This file is the default locale (fallbackLocale) and determines MessageSchema",
+  "_comment26": "    本文件是默认语言（fallbackLocale），决定了 MessageSchema 的结构",
+  "_comment27": "===================================================================================",
+
   "app": {
     "title": "GraphForge",
     "subtitle": "知识图谱构建与管理平台",
@@ -289,4 +317,3 @@
     "logout": "退出登录"
   }
 }
-
